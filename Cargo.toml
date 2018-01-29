@@ -1,0 +1,17 @@
+[package]
+name = "crom-cli"
+version = "0.1.0"
+authors = ["Ethan Hall <ethan@ehdev.io>"]
+
+[lib]
+name = "crom_lib"
+path = "src/crom_lib/lib.rs"
+
+[dependencies]
+log = "0.4.1"
+clap = "2.29.2"
+simplelog = "0.4.4"
+futures = "0.1"
+hyper = "0.11"
+tokio-core = "0.1"
+regex = "0.2"
