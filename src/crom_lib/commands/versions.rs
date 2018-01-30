@@ -42,7 +42,7 @@ fn list(args: &ArgMatches) -> i32 {
 
 
     let repo = Repo { project: s!(project), repo: s!(repo) };
-    let response = crom_api.do_get(&repo, Some("/versions"));
+    let response = crom_api.do_get(&repo, vec!["versions"]);
     debug!("Got response: {:?}", response);
     return 0;
 }

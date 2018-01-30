@@ -33,9 +33,14 @@ impl CromApi {
         return CromApi { server: CromServer { base_path: base_path }, auth: auth_token.and_then(|x| Some(CromAuth { token: x})) };
     }
 
-    pub fn do_get(&self, path: &ToCromPath, append: Option<&str>) -> CromRequestResponse {
+    pub fn do_get(&self, path: &ToCromPath, append: Vec<&str>) -> CromRequestResponse {
         let path_url = path.to_crom_path();
-        let url = format!("{basePath}{path}{append}", basePath=self.server.base_path, path=path_url, append=append.unwrap_or(""));
+        let mut url = format!("{basePath}{path}", basePath=self.server.base_path, path=path_url);
+        if !append.is_empty() {
+            let append_string = append.join("/");
+            url = format!("{}/{}", url, append_string);
+        }
+        
         debug!("Making request for {}", url);
 
         let mut core = match Core::new() {

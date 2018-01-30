@@ -6,6 +6,8 @@ extern crate hyper;
 extern crate futures;
 extern crate tokio_core;
 extern crate regex;
+extern crate fern;
+extern crate chrono;
 
 #[macro_export]
 macro_rules! s {
@@ -16,6 +18,7 @@ pub static DEFAULT_BASE_URL: &'static str = "http://api.crom.tech";
 
 pub mod requests;
 pub mod commands;
+pub mod logging;
 
 pub trait ToCromPath {
     fn to_crom_path(&self) -> String;
