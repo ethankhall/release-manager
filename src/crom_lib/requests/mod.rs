@@ -1,3 +1,5 @@
+use std::fmt;
+
 use futures::{Future, Stream};
 use hyper::{Client};
 use tokio_core::reactor::Core;
@@ -24,7 +26,19 @@ pub struct CromApi {
 pub enum CromRequestResponse {
     InternalError(String),
     UserError(String),
-    Ok(String)
+    Sucess(String)
+}
+
+impl fmt::Display for CromRequestResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let message = match *self {
+            CromRequestResponse::Sucess(_) => s!("Successfull Request"),
+            CromRequestResponse::InternalError(_) => format!("Internal Error Occured: {:?}", self),
+            CromRequestResponse::UserError(_) => format!("A User Error Occured: {:?}", self)
+        };
+
+        write!(f, "{}", message)
+    }
 }
 
 impl CromApi {
@@ -63,36 +77,8 @@ impl CromApi {
         });
 
         return match core.run(work) {
-            Ok(ok) => CromRequestResponse::Ok(ok),
+            Ok(ok) => CromRequestResponse::Sucess(ok),
             Err(err) => CromRequestResponse::InternalError(format!("Error Running Execution against {}: {:?}", path.friendly_name(), err)),
         };
-
-
-        // let work = client.get(uri).and_then(|res| {
-        //     let status = res.status();
-        //     if status == StatusCode::NotFound {
-        //         return CromRequestResponse::UserError(format!("Unable to find {}", path.friendly_name()));
-        //     } else if status.is_client_error() {
-        //         return CromRequestResponse::UserError(format!("User error when trying to access {}", path.friendly_name()));
-        //     } else if status.is_server_error() {
-        //         return CromRequestResponse::UserError(format!("Server error when trying to access {}", path.friendly_name()));
-        //     };
-
-        //     debug!("Response: {}", res.status());
-
-        //     let mut body: Vec<u8 > = Vec::new();
-
-        //     // res.body().for_each(|mut chunk| {
-        //     //     body.extend(&chunk[..]);
-        //     // });
-        //     println!("{:?}", res.body());
-
-        //     return CromRequestResponse::Ok(String::from_utf8(body).unwrap());
-        // });
-
-        // return match core.run(work) {
-        //     Ok(ok) => ok,
-        //     Err(err) => CromRequestResponse::InternalError(format!("Error Running Execution against {}: {:?}", path.friendly_name(), err)),
-        // };
     }
 }
