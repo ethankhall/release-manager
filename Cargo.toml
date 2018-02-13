@@ -1,11 +1,11 @@
 [package]
-name = "crom-cli"
+name = "release-manager"
 version = "0.1.0"
 authors = ["Ethan Hall <ethan@ehdev.io>"]
 
 [lib]
-name = "crom_lib"
-path = "src/crom_lib/lib.rs"
+name = "manager_lib"
+path = "src/manager_lib/lib.rs"
 
 [dependencies]
 log = "0.4.1"
@@ -17,3 +17,5 @@ tokio-core = "0.1"
 regex = "0.2"
 colored = "1.6"
 chrono = "0.4"
+git2 = "0.6"
+json = "*"

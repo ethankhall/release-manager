@@ -1,6 +1,5 @@
 pub mod versions;
 
-use clap::ArgMatches;
 use regex::Regex;
 
 /// Validate that a path can point to a repo. A repo path consists of two parts, the project
@@ -13,11 +12,6 @@ pub(crate) fn is_path_repo(path: String) -> Result<(), String> {
         Err(s!("Path must be in format <project>/<repo>. An example is ethankhall/version-management."))
     }
 }
-
-pub(crate) fn get_base_url(args: &ArgMatches) -> String {
-    return s!(args.value_of("base_url").unwrap_or(&super::DEFAULT_BASE_URL));
-}
-
 
 #[cfg(test)]
 mod tests {

@@ -2,17 +2,16 @@
 extern crate log;
 #[macro_use]
 extern crate clap;
-extern crate crom_lib;
+extern crate manager_lib;
 
-use clap::{Arg, ArgGroup, App, AppSettings};
+use clap::{Arg, ArgGroup, App, AppSettings, SubCommand};
 
-use crom_lib::commands::versions::{process_version_command, version_clap};
-use crom_lib::DEFAULT_BASE_URL;
-use crom_lib::logging::configure_logging;
+use manager_lib::commands::versions::{process_version_command, version_clap};
+use manager_lib::logging::configure_logging;
 
 
 fn main() {
-    let matches = App::new("Crom")
+    let matches = App::new("release-manager")
         .version(crate_version!())
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .arg(Arg::with_name("verbose")
@@ -26,13 +25,10 @@ fn main() {
             .help("Only error output will be displayed"))
         .group(ArgGroup::with_name("logging")
             .args(&["verbose", "quite"]))
-        .arg(Arg::with_name("base_url")
-            .long("base-url")
-            .default_value(DEFAULT_BASE_URL))
         .subcommand(version_clap())
         .get_matches();
 
-    configure_logging(2, false);
+    configure_logging(matches.occurrences_of("verbose") as i32, matches.is_present("quite"));
     
 
     let code: i32 = match matches.subcommand() {
