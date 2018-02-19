@@ -19,3 +19,9 @@ colored = "1.6"
 chrono = "0.4"
 git2 = "0.6"
 json = "*"
+toml = "0.4"
+toml_edit = "0.1"
+
+[dependencies.semver]
+features = ["serde"]
+version = "*"

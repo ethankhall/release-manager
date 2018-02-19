@@ -12,6 +12,9 @@ extern crate regex;
 extern crate fern;
 extern crate chrono;
 extern crate git2;
+extern crate semver;
+extern crate toml;
+extern crate toml_edit;
 
 #[macro_export]
 macro_rules! s {
@@ -20,4 +23,6 @@ macro_rules! s {
 
 pub mod commands;
 pub mod logging;
+pub(crate) mod file;
 pub(crate) mod repo;
+pub(crate) mod version_manager;

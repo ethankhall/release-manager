@@ -2,6 +2,7 @@ use std::env;
 
 use clap::{App, ArgMatches, AppSettings, SubCommand, Arg, ArgGroup};
 
+use super::super::version_manager::build_project;
 use super::super::repo::{DefaultRepo, Repo};
 
 pub fn version_clap<'a,'b>() -> App<'a, 'b> {
@@ -33,7 +34,17 @@ pub fn version_clap<'a,'b>() -> App<'a, 'b> {
             .help("Bump the patch component of the version"))
         .group(ArgGroup::with_name("version-options")
             .required(true)
-            .args(&["set-version", "bump-major", "bump-minor", "bump-patch"]));
+            .args(&["set-version", "bump-major", "bump-minor", "bump-patch"]))
+        .arg(Arg::with_name("message")
+            .long("message")
+            .short("m")
+            .help("Give a message for the tag being created")
+            .takes_value(true)
+            .max_values(1)
+            .min_values(0))
+        .arg(Arg::with_name("push")
+            .long("push")
+            .help("Push to remote SCM"));
     
     return App::new("version")
         .about("Operates on versions of projects.")
@@ -45,12 +56,24 @@ pub fn version_clap<'a,'b>() -> App<'a, 'b> {
 pub fn process_version_command(args: &ArgMatches) -> i32 {
     return match args.subcommand() {
         ("list",  Some(sub_m)) => { list(sub_m) },
-        ("create", Some(m)) => { 0 },
+        ("create", Some(m)) => { create_version(m) },
         _ => { 
             error!("No command avaliable. {:?}", args); 
             -1
         }
     };
+}
+
+fn create_version(args: &ArgMatches) -> i32 {
+    let pwd = env::current_dir().unwrap();
+    let path = pwd.as_path();
+    let repo = match DefaultRepo::new(path) {
+        Some(v) => v,
+        None => return 1
+    };
+
+    build_project(path);
+    return 0;
 }
 
 fn list(args: &ArgMatches) -> i32 {

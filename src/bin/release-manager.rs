@@ -4,7 +4,7 @@ extern crate log;
 extern crate clap;
 extern crate manager_lib;
 
-use clap::{Arg, ArgGroup, App, AppSettings, SubCommand};
+use clap::{Arg, ArgGroup, App, AppSettings};
 
 use manager_lib::commands::versions::{process_version_command, version_clap};
 use manager_lib::logging::configure_logging;
@@ -18,11 +18,13 @@ fn main() {
             .long("verbose")
             .short("v")
             .multiple(true)
-            .help("Enables more verbose output"))
+            .help("Enables more verbose output")
+            .global(true))
         .arg(Arg::with_name("quite")
             .long("quite")
             .short("q")
-            .help("Only error output will be displayed"))
+            .help("Only error output will be displayed")
+            .global(true))
         .group(ArgGroup::with_name("logging")
             .args(&["verbose", "quite"]))
         .subcommand(version_clap())
