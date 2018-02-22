@@ -1,9 +1,13 @@
 use std::env;
+use std::path::Path;
 
 use clap::{App, ArgMatches, AppSettings, SubCommand, Arg, ArgGroup};
 
+use semver::Version as SemverVersion;
+
 use super::super::version_manager::build_project;
 use super::super::repo::{DefaultRepo, Repo};
+use super::super::file::read_file;
 
 pub fn version_clap<'a,'b>() -> App<'a, 'b> {
     let list_command = SubCommand::with_name("list")
@@ -14,13 +18,30 @@ pub fn version_clap<'a,'b>() -> App<'a, 'b> {
                 .possible_values(&["json", "plain"])
                 .default_value("plain"));
     
-    let create_command = SubCommand::with_name("create")
-        .about("Create a new version")
-        .arg(Arg::with_name("REV")
-            .help("The revision to use for the version")
-            .default_value("HEAD"))
+    let tag_release = SubCommand::with_name("tag-release")
+        .about("Tag the current branch with the version in the metadata file for the project.")
+        .arg(Arg::with_name("message")
+            .long("message")
+            .short("m")
+            .help("Give a message for the tag being created")
+            .takes_value(true)
+            .max_values(1)
+            .min_values(0))
+        .arg(Arg::with_name("message-file")
+            .long("message-file")
+            .help("Read message from file for the tag being created")
+            .takes_value(true)
+            .number_of_values(1))
+        .group(ArgGroup::with_name("messages")
+            .args(&["message", "message-file"]))
+        .arg(Arg::with_name("push")
+            .long("push")
+            .help("Push to remote SCM"));
+
+    let create_command = SubCommand::with_name("bump-version")
+        .about("Bump the version for the project")
         .arg(Arg::with_name("set-version")
-            .long("set-major")
+            .long("set-version")
             .help("Specify the version to create.")
             .takes_value(true))
         .arg(Arg::with_name("bump-major")
@@ -35,28 +56,44 @@ pub fn version_clap<'a,'b>() -> App<'a, 'b> {
         .group(ArgGroup::with_name("version-options")
             .required(true)
             .args(&["set-version", "bump-major", "bump-minor", "bump-patch"]))
+        .arg(Arg::with_name("commit")
+            .long("commit")
+            .short("c")
+            .help("Commit the version file change"))
         .arg(Arg::with_name("message")
             .long("message")
             .short("m")
             .help("Give a message for the tag being created")
             .takes_value(true)
             .max_values(1)
-            .min_values(0))
+            .min_values(0)
+            .requires("commit"))
+        .arg(Arg::with_name("message-file")
+            .long("message-file")
+            .help("Read message from file for the tag being created")
+            .takes_value(true)
+            .number_of_values(1)
+            .requires("commit"))
+        .group(ArgGroup::with_name("messages")
+            .args(&["message", "message-file"]))
         .arg(Arg::with_name("push")
             .long("push")
-            .help("Push to remote SCM"));
+            .help("Push to remote SCM")
+            .requires("commit"));
     
     return App::new("version")
         .about("Operates on versions of projects.")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(list_command)
+        .subcommand(tag_release)
         .subcommand(create_command);
 }
 
 pub fn process_version_command(args: &ArgMatches) -> i32 {
     return match args.subcommand() {
         ("list",  Some(sub_m)) => { list(sub_m) },
-        ("create", Some(m)) => { create_version(m) },
+        ("tag-release",  Some(sub_m)) => { tag_release(sub_m) },
+        ("bump-version", Some(m)) => { bump_version(m) },
         _ => { 
             error!("No command avaliable. {:?}", args); 
             -1
@@ -64,7 +101,23 @@ pub fn process_version_command(args: &ArgMatches) -> i32 {
     };
 }
 
-fn create_version(args: &ArgMatches) -> i32 {
+fn extract_message(args: &ArgMatches, inline: &str, file_name: &str, default: String) -> String {
+    let (message, message_file) = (args.value_of(inline), args.value_of(file_name));
+    let message_contents = if message_file.is_some() {
+        let path = Path::new(message_file.unwrap());
+        read_file(&path)
+    } else if message.is_some() {
+        s!(message.unwrap())
+    } else {
+        default
+    };
+
+    debug!("Message is {}", message_contents);
+
+    return message_contents;
+}
+
+fn tag_release(args: &ArgMatches) -> i32 {
     let pwd = env::current_dir().unwrap();
     let path = pwd.as_path();
     let repo = match DefaultRepo::new(path) {
@@ -72,7 +125,55 @@ fn create_version(args: &ArgMatches) -> i32 {
         None => return 1
     };
 
-    build_project(path);
+    let project = build_project(path).unwrap();
+    let version = project.get_version();
+
+    let message_contents = extract_message(args, "message", "message-file", format!("Tagging version {}.", version.to_string()));
+
+    repo.tag_version(version, message_contents);
+
+    return 0;
+}
+
+fn bump_version(args: &ArgMatches) -> i32 {
+    let pwd = env::current_dir().unwrap();
+    let path = pwd.as_path();
+    let repo = match DefaultRepo::new(path) {
+        Some(v) => v,
+        None => return 1
+    };
+
+    let project = build_project(path).unwrap();
+    let next_version = if let Some(ver) = args.value_of("set-version") {
+        SemverVersion::parse(ver).expect("Version provided is not acceptable semver version")
+    } else {
+        let mut version = project.get_version();
+
+        let (maj, min, pat) = (args.is_present("bump-major"),
+                                args.is_present("bump-minor"),
+                                args.is_present("bump-patch"));
+
+        match (maj, min, pat) {
+            (true, _, _) => version.increment_major(),
+            (_, true, _) => version.increment_minor(),
+            (_, _, true) => version.increment_patch(),
+            _            => unreachable!(),
+        };
+
+        version
+    };
+
+    let next_version_string = next_version.to_string();
+    info!("Next version will be {}", next_version_string);
+
+    project.update_version(next_version);
+
+    if args.is_present("commit") {
+        let message_contents = extract_message(args, "message", "message-file", format!("Incrementing version to {}.", next_version_string));
+
+        repo.commit_files(project.get_version_files(), message_contents);
+    }
+
     return 0;
 }
 

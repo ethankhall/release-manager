@@ -10,6 +10,6 @@ pub(crate) fn read_file(path: &Path) -> String {
 }
 
 pub(crate) fn write_file(contents: String, path: &Path) {
-    let mut file = File::open(path).expect("Unable to open the file");
+    let mut file = File::create(path).expect("Unable to open the file");
     file.write_all(contents.as_bytes()).expect("file written");
 }
