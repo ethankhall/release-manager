@@ -8,11 +8,8 @@ use toml_edit::{Document, value};
 
 use file::{read_file, write_file};
 
-pub(crate) fn build_project(path: &Path) -> Option<Box<Project>> {
-    let mut path = path;
-    let mut at_root = false;
-
-    while !at_root {
+pub(crate) fn build_project(path: PathBuf) -> Option<Box<Project>> {
+    loop {
         let files = path.read_dir().unwrap();
         for file in files {
             let file_path = file.unwrap();
@@ -22,9 +19,8 @@ pub(crate) fn build_project(path: &Path) -> Option<Box<Project>> {
             }
         }
 
-        match path.clone().parent() {
-            Some(parent_path) => path = parent_path,
-            None => at_root = true,
+        if path.parent().is_none() {
+            break;
         }
     }
 
@@ -75,7 +71,7 @@ impl Project for CargoProject {
             None => panic!("Unable to get version for cargo.toml")
         };
 
-        info!("Current project version: {}", version);
+        debug!("Current project version: {}", version);
 
         return Version::parse(version).unwrap();
     }

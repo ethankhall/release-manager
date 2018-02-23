@@ -7,7 +7,7 @@ use json::{JsonValue, Null};
 use semver::Version as SemverVersion;
 
 use git2::Repository as GitRepository;
-use git2::{ObjectType, Commit};
+use git2::{ObjectType, Commit, Oid, Direction};
 use git2::Error as GitError;
 
 pub(crate) struct Version {
@@ -34,6 +34,7 @@ pub(crate) trait Repo {
     fn find_versions(&self) -> Vec<Version>;
     fn tag_version(&self, version: SemverVersion, message: String);
     fn commit_files(&self, paths: Vec<PathBuf>, message: String);
+    fn update_remote(&self) -> bool;
 }
 
 pub(crate) struct DefaultRepo {
@@ -59,6 +60,16 @@ impl DefaultRepo {
         return obj.into_commit().map_err(|_| GitError::from_str("Couldn't find commit"));
     }
     
+    fn add_files_to_index(&self, paths: &Vec<PathBuf>) -> Result<Oid, GitError>{
+        let mut index = self.repo.index().expect("Unable to create Index for commit");
+        for path_buf in paths {
+            let path = path_buf.strip_prefix(&self.root_path).unwrap();
+            trace!("Adding file {:?} to repo", path);
+            index.add_path(path).expect("Unable to add file to index");
+        }
+        index.write().expect("Unable to write git index to disk.");
+        return index.write_tree();
+    }
 }
 
 impl Repo for DefaultRepo {
@@ -107,19 +118,24 @@ impl Repo for DefaultRepo {
 
     fn commit_files(&self, paths: Vec<PathBuf>, message: String) {
         let sig = &self.repo.signature().unwrap();
-        let tree = {
-            let mut index = self.repo.index().expect("Unable to create Index for commit");
-            for path_buf in paths {
-                let path = path_buf.strip_prefix(&self.root_path).unwrap();
-                trace!("Adding file {:?} to repo", path);
-                index.add_path(path).expect("Unable to add file to index");
-            }
-
-            index.write_tree().expect("Unable to build tree")
-        };
+        let tree = self.add_files_to_index(&paths).expect("Unable to build tree");
 
         let parent_id = self.find_last_commit().expect("Unable to find latest commit");
         let tree_id = self.repo.find_tree(tree).unwrap();
         self.repo.commit(Some("HEAD"), sig, sig, &message, &tree_id, &[&parent_id]).expect("Unable to create commit for version bump.");
+    }
+
+    fn update_remote(&self) -> bool {
+        let mut remote = match self.repo.find_remote("origin") {
+            Ok(r) => r,
+            Err(_) => {
+                error!("Unable to find 'origin' remote");
+                return false
+            }
+        };
+        remote.connect_auth(Direction::Push, None, None).expect("Unable to push");
+        remote.push(&["refs/heads/master:refs/heads/master"], None).expect("Push to succeede");
+
+        return true;
     }
 }

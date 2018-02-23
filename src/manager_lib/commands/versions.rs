@@ -1,5 +1,5 @@
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use clap::{App, ArgMatches, AppSettings, SubCommand, Arg, ArgGroup};
 
@@ -8,6 +8,13 @@ use semver::Version as SemverVersion;
 use super::super::version_manager::build_project;
 use super::super::repo::{DefaultRepo, Repo};
 use super::super::file::read_file;
+use super::CommandError;
+
+enum ErrorCodes {
+    Unknown,
+    UnableToPush,
+    NoRepoFound
+}
 
 pub fn version_clap<'a,'b>() -> App<'a, 'b> {
     let list_command = SubCommand::with_name("list")
@@ -90,13 +97,18 @@ pub fn version_clap<'a,'b>() -> App<'a, 'b> {
 }
 
 pub fn process_version_command(args: &ArgMatches) -> i32 {
-    return match args.subcommand() {
+    let response = match args.subcommand() {
         ("list",  Some(sub_m)) => { list(sub_m) },
         ("tag-release",  Some(sub_m)) => { tag_release(sub_m) },
         ("bump-version", Some(m)) => { bump_version(m) },
-        _ => { 
-            error!("No command avaliable. {:?}", args); 
-            -1
+        _ => Err(CommandError::new(ErrorCodes::Unknown as i32, format!("No command avaliable. {:?}", args)))
+    };
+
+    return match response {
+        Ok(_) => 0,
+        Err(value) => {
+            error!("{}", value.message);
+            value.error_code
         }
     };
 }
@@ -117,13 +129,17 @@ fn extract_message(args: &ArgMatches, inline: &str, file_name: &str, default: St
     return message_contents;
 }
 
-fn tag_release(args: &ArgMatches) -> i32 {
+fn get_repo() -> Result<(DefaultRepo, PathBuf), CommandError> {
     let pwd = env::current_dir().unwrap();
     let path = pwd.as_path();
-    let repo = match DefaultRepo::new(path) {
-        Some(v) => v,
-        None => return 1
+    return match DefaultRepo::new(path) {
+        Some(v) => Ok((v, path.to_path_buf())),
+        None => return Err(CommandError::new(ErrorCodes::NoRepoFound as i32, format!("Unable to find repo at {:?}", path)))
     };
+}
+
+fn tag_release(args: &ArgMatches) -> Result<(), CommandError> {
+    let (repo, path) = get_repo()?;
 
     let project = build_project(path).unwrap();
     let version = project.get_version();
@@ -132,16 +148,11 @@ fn tag_release(args: &ArgMatches) -> i32 {
 
     repo.tag_version(version, message_contents);
 
-    return 0;
+    return Ok(());
 }
 
-fn bump_version(args: &ArgMatches) -> i32 {
-    let pwd = env::current_dir().unwrap();
-    let path = pwd.as_path();
-    let repo = match DefaultRepo::new(path) {
-        Some(v) => v,
-        None => return 1
-    };
+fn bump_version(args: &ArgMatches) -> Result<(), CommandError> {
+    let (repo, path) = get_repo()?;
 
     let project = build_project(path).unwrap();
     let next_version = if let Some(ver) = args.value_of("set-version") {
@@ -164,7 +175,7 @@ fn bump_version(args: &ArgMatches) -> i32 {
     };
 
     let next_version_string = next_version.to_string();
-    info!("Next version will be {}", next_version_string);
+    info!(target: "user", "Next version will be {}", next_version_string);
 
     project.update_version(next_version);
 
@@ -174,14 +185,17 @@ fn bump_version(args: &ArgMatches) -> i32 {
         repo.commit_files(project.get_version_files(), message_contents);
     }
 
-    return 0;
+    if args.is_present("push") {
+        if !repo.update_remote() {
+            return Err(CommandError::new(ErrorCodes::UnableToPush as i32, s!("Unable to push to repo")));
+        }
+    }
+
+    return Ok(());
 }
 
-fn list(args: &ArgMatches) -> i32 {
-    let repo = match DefaultRepo::new(env::current_dir().unwrap().as_path()) {
-        Some(v) => v,
-        None => return 1
-    };
+fn list(args: &ArgMatches) -> Result<(), CommandError> {
+    let (repo, _) = get_repo()?;
 
     let versions = repo.find_versions();
 
@@ -209,5 +223,6 @@ fn list(args: &ArgMatches) -> i32 {
             });
         }
     }
-    return 0;
+
+    return Ok(());
 }

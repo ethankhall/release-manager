@@ -9,7 +9,7 @@ pub fn configure_logging(verbose: i32, quite: bool) {
     let level: Level = if quite {
         log_level(0)
     } else {
-        log_level(verbose + 1)
+        log_level(verbose + 2)
     };
 
     let mut dispatch = Dispatch::new();
