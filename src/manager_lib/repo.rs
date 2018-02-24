@@ -1,14 +1,25 @@
+use std::env;
 use std::path::{Path, PathBuf};
 use std::vec::Vec;
 use std::convert::Into;
 
 use serialize::hex::ToHex;
 use json::{JsonValue, Null};
-use semver::Version as SemverVersion;
 
 use git2::Repository as GitRepository;
-use git2::{ObjectType, Commit, Oid, Direction};
+use git2::{ObjectType, Commit, Oid};
 use git2::Error as GitError;
+
+use super::errors::*;
+
+pub(crate) fn get_repo() -> Result<(DefaultRepo, PathBuf), CommandError> {
+    let pwd = env::current_dir().unwrap();
+    let path = pwd.as_path();
+    return match DefaultRepo::new(path) {
+        Some(v) => Ok((v, path.to_path_buf())),
+        None => return Err(CommandError::new(ErrorCodes::NoRepoFound, format!("Unable to find repo at {:?}", path)))
+    };
+}
 
 pub(crate) struct Version {
     pub(crate) id: String,
@@ -32,9 +43,8 @@ impl Into<JsonValue> for Version {
 
 pub(crate) trait Repo {
     fn find_versions(&self) -> Vec<Version>;
-    fn tag_version(&self, version: SemverVersion, message: String);
+    fn get_head(&self) -> String;
     fn commit_files(&self, paths: Vec<PathBuf>, message: String);
-    fn update_remote(&self) -> bool;
 }
 
 pub(crate) struct DefaultRepo {
@@ -109,11 +119,12 @@ impl Repo for DefaultRepo {
         return result;
     }
 
-    fn tag_version(&self, version: SemverVersion, message: String) {
-        let head = self.repo.head().unwrap();
-        let head = self.repo.find_object(head.target().unwrap(), Some(ObjectType::Any));
-        let tag_name = format!("v{}", version.to_string());
-        self.repo.tag(tag_name.as_str(), &head.unwrap(), &self.repo.signature().unwrap(), message.as_str(), false).expect("Tag wasn't created");
+    fn get_head(&self) -> String {
+        return self.repo.head()
+            .and_then(|x| x.peel_to_commit())
+            .and_then(|x| Ok(x.id()))
+            .expect("Unable to get current commit")
+            .as_bytes().to_hex();
     }
 
     fn commit_files(&self, paths: Vec<PathBuf>, message: String) {
@@ -123,19 +134,5 @@ impl Repo for DefaultRepo {
         let parent_id = self.find_last_commit().expect("Unable to find latest commit");
         let tree_id = self.repo.find_tree(tree).unwrap();
         self.repo.commit(Some("HEAD"), sig, sig, &message, &tree_id, &[&parent_id]).expect("Unable to create commit for version bump.");
-    }
-
-    fn update_remote(&self) -> bool {
-        let mut remote = match self.repo.find_remote("origin") {
-            Ok(r) => r,
-            Err(_) => {
-                error!("Unable to find 'origin' remote");
-                return false
-            }
-        };
-        remote.connect_auth(Direction::Push, None, None).expect("Unable to push");
-        remote.push(&["refs/heads/master:refs/heads/master"], None).expect("Push to succeede");
-
-        return true;
     }
 }

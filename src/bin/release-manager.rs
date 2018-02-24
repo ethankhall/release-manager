@@ -6,7 +6,8 @@ extern crate manager_lib;
 
 use clap::{Arg, ArgGroup, App, AppSettings};
 
-use manager_lib::commands::versions::{process_version_command, version_clap};
+use manager_lib::commands::project::{process_project_command, project_clap};
+use manager_lib::commands::github::{process_github_command, github_clap};
 use manager_lib::logging::configure_logging;
 
 
@@ -27,14 +28,16 @@ fn main() {
             .global(true))
         .group(ArgGroup::with_name("logging")
             .args(&["verbose", "quite"]))
-        .subcommand(version_clap())
+        .subcommand(project_clap())
+        .subcommand(github_clap())
         .get_matches();
 
     configure_logging(matches.occurrences_of("verbose") as i32, matches.is_present("quite"));
     
 
     let code: i32 = match matches.subcommand() {
-        ("version",  Some(sub_m)) => {process_version_command(sub_m)}, // clone was used
+        ("project",  Some(sub_m)) => process_project_command(sub_m),
+        ("github", Some(sub_m)) => process_github_command(sub_m),
         _ => { 
             error!("No command avalibe"); 
             -1
