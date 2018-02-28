@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::io::Error;
 
 use futures::{Future, Stream};
-use hyper::{Client, Request, Method, StatusCode};
+use hyper::{Client, Method, Request, StatusCode};
 use hyper::client::HttpConnector;
 use hyper::Uri as HyperUri;
 use tokio_core::reactor::Core;
@@ -33,13 +33,25 @@ pub enum GitHubError {
 }
 
 pub trait GitHub {
-    fn create_release(&self, id: String, version: Version, body: String, draft: bool) -> Result<(), GitHubError>;
-    fn add_artifacts_to_release(&self, release: String, artifacts: BTreeMap<String, PathBuf>) -> Result<(), GitHubError>;
+    fn create_release(
+        &self,
+        id: String,
+        version: Version,
+        body: String,
+        draft: bool,
+    ) -> Result<(), GitHubError>;
+    fn add_artifacts_to_release(
+        &self,
+        release: String,
+        artifacts: BTreeMap<String, PathBuf>,
+    ) -> Result<(), GitHubError>;
 }
 
 impl GitHubImpl {
     pub(crate) fn new(args: &ArgMatches) -> Result<GitHubImpl, GitHubError> {
-        let path: Vec<&str> = args.values_of(cli_shared::GITHUB_PATH).expect("GitHub path to be set").collect();;
+        let path: Vec<&str> = args.values_of(cli_shared::GITHUB_PATH)
+            .expect("GitHub path to be set")
+            .collect();
         let (project, repo) = (path[0], path[1]);
 
         let core = match Core::new() {
@@ -49,8 +61,10 @@ impl GitHubImpl {
             }
         };
 
-        let github = GitHubImpl { 
-            api_token: args.value_of(cli_shared::GITHUB_API_TOKEN).expect("GitHub API Token not provided").into(), 
+        let github = GitHubImpl {
+            api_token: args.value_of(cli_shared::GITHUB_API_TOKEN)
+                .expect("GitHub API Token not provided")
+                .into(),
             github_api: s!("https://api.github.com"),
             project_name: project.into(),
             repo_name: repo.into(),
@@ -72,7 +86,8 @@ impl GitHubImpl {
     }
 
     fn validate_files(artifacts: &BTreeMap<String, PathBuf>) -> Option<GitHubError> {
-        let missing_files:Vec<String> = artifacts.into_iter()
+        let missing_files: Vec<String> = artifacts
+            .into_iter()
             .filter(|&(_, value)| !value.exists())
             .map(|(key, _)| key.to_string())
             .collect();
@@ -90,8 +105,13 @@ impl GitHubImpl {
 }
 
 impl GitHub for GitHubImpl {
-
-    fn create_release(&self, id: String, version: Version, body: String, draft: bool) -> Result<(), GitHubError> {
+    fn create_release(
+        &self,
+        id: String,
+        version: Version,
+        body: String,
+        draft: bool,
+    ) -> Result<(), GitHubError> {
         let client = self.make_client();
 
         let url = self.build_base_url(vec!["releases"]);
@@ -116,11 +136,13 @@ impl GitHub for GitHubImpl {
 
         let mut request = Request::new(Method::Post, uri);
         request.set_body(body.dump());
-        request.headers_mut().set_raw("Authorization", format!("token {}", self.api_token));
+        request
+            .headers_mut()
+            .set_raw("Authorization", format!("token {}", self.api_token));
 
         let response = match client.request(request).wait() {
             Err(err) => return Err(GitHubError::CommunicationError),
-            Ok(response) => response
+            Ok(response) => response,
         };
 
         if response.status() != StatusCode::Created {
@@ -129,10 +151,15 @@ impl GitHub for GitHubImpl {
             return Err(GitHubError::UnableToCreateRelease(response.status()));
         }
 
-        let body = response.body().concat2().wait().map(|chunk| {
-            let v = chunk.to_vec();
-            String::from_utf8_lossy(&v).to_string()
-        }).unwrap();
+        let body = response
+            .body()
+            .concat2()
+            .wait()
+            .map(|chunk| {
+                let v = chunk.to_vec();
+                String::from_utf8_lossy(&v).to_string()
+            })
+            .unwrap();
 
         trace!("Body from GitHub API: {}", body);
 
@@ -141,9 +168,13 @@ impl GitHub for GitHubImpl {
         return Ok(());
     }
 
-    fn add_artifacts_to_release(&self, release: String, artifacts: BTreeMap<String, PathBuf>) -> Result<(), GitHubError> {
+    fn add_artifacts_to_release(
+        &self,
+        release: String,
+        artifacts: BTreeMap<String, PathBuf>,
+    ) -> Result<(), GitHubError> {
         match GitHubImpl::validate_files(&artifacts) {
-            None => {},
+            None => {}
             Some(value) => {
                 return Err(value);
             }

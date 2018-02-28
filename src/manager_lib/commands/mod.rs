@@ -66,7 +66,6 @@ pub(crate) mod cli_shared {
         return ArgGroup::with_name("messages").args(&["message", "message-file"]);
     }
 
-
     pub(crate) fn extract_message(args: &ArgMatches, default: String) -> String {
         let (message, message_file) = (args.value_of(MESSAGE), args.value_of(MESSAGE_FILE));
         let message_contents = if message_file.is_some() {

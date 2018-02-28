@@ -4,7 +4,7 @@ use std::ffi::OsString;
 
 use semver::Version;
 use toml;
-use toml_edit::{Document, value};
+use toml_edit::{value, Document};
 
 use file::{read_file, write_file};
 
@@ -34,14 +34,14 @@ pub(crate) trait Project {
 }
 
 struct CargoProject {
-    project_root: String
+    project_root: String,
 }
 
 impl CargoProject {
     fn new(path: &Path) -> CargoProject {
         debug!("Project path: {:?}", path);
         return CargoProject {
-            project_root: s!(path.to_str().unwrap())
+            project_root: s!(path.to_str().unwrap()),
         };
     }
 
@@ -68,14 +68,14 @@ impl Project for CargoProject {
 
         let version = match parsed.get("package").and_then(|x| x.get("version")) {
             Some(value) => value.as_str().unwrap(),
-            None => panic!("Unable to get version for cargo.toml")
+            None => panic!("Unable to get version for cargo.toml"),
         };
 
         debug!("Current project version: {}", version);
 
         return Version::parse(version).unwrap();
     }
-    
+
     fn update_version(&self, version: Version) {
         let cargo_path = self.get_cargo_file();
         let cargo_path = cargo_path.as_path();

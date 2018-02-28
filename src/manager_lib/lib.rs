@@ -1,29 +1,28 @@
-#![feature(slice_concat_ext)] 
+#![feature(slice_concat_ext)]
 #![feature(rustc_private)]
-extern crate serialize;
-#[macro_use]
-extern crate log;
+extern crate chrono;
+extern crate clap;
+extern crate fern;
+extern crate futures;
+extern crate git2;
+extern crate hyper;
 #[macro_use]
 extern crate json;
-extern crate clap;
-extern crate hyper;
-extern crate futures;
-extern crate tokio_core;
-extern crate regex;
-extern crate fern;
-extern crate chrono;
-extern crate git2;
-extern crate semver;
-extern crate toml;
-extern crate toml_edit;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde;
-extern crate serde_json;
-extern crate url;
 #[macro_use]
 extern crate lazy_static;
-
+#[macro_use]
+extern crate log;
+extern crate regex;
+extern crate semver;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+extern crate serialize;
+extern crate tokio_core;
+extern crate toml;
+extern crate toml_edit;
+extern crate url;
 
 #[macro_export]
 macro_rules! s {

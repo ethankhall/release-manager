@@ -14,7 +14,8 @@ pub fn configure_logging(verbose: i32, quite: bool) {
 
     let mut dispatch = Dispatch::new();
     if level != Level::Trace {
-        dispatch = dispatch.level_for("tokio_core", Level::Warn.to_level_filter())
+        dispatch = dispatch
+            .level_for("tokio_core", Level::Warn.to_level_filter())
             .level_for("hyper", Level::Warn.to_level_filter());
     }
 
@@ -68,9 +69,10 @@ fn configure_logging_output(logging_level: Level, dispatch: Dispatch) -> Dispatc
         return dispatch.format(move |out, message, record| {
             if record.level() == Level::Error {
                 out.finish(format_args!(
-                "[{}] {}",
-                colors.color(record.level()),
-                message));
+                    "[{}] {}",
+                    colors.color(record.level()),
+                    message
+                ));
             } else {
                 out.finish(format_args!("{}", message));
             }

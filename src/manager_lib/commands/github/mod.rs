@@ -3,17 +3,17 @@ use std::path::{Path, PathBuf};
 use std::slice::SliceConcatExt;
 use std::error::Error;
 
-use clap::{App, ArgMatches, AppSettings, SubCommand, Arg};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
 use super::super::version_manager::build_project;
 use super::super::errors::*;
 use super::super::repo::{get_repo, Repo};
 use super::cli_shared;
-use self::api::{GitHubImpl, GitHub, GitHubError};
+use self::api::{GitHub, GitHubError, GitHubImpl};
 
 mod api;
 
-pub fn github_clap<'a,'b>() -> App<'a, 'b> {
+pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
     let github_command = SubCommand::with_name("artifacts")
         .about("Add artifacts to github release")
         // .arg(cli_shared::github_user())
@@ -35,7 +35,7 @@ pub fn github_clap<'a,'b>() -> App<'a, 'b> {
         .arg(cli_shared::message())
         .arg(cli_shared::message_file())
         .group(cli_shared::message_group());
-    
+
     return App::new("github")
         .about("Upload artifacts to different sources.")
         .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -45,9 +45,12 @@ pub fn github_clap<'a,'b>() -> App<'a, 'b> {
 
 pub fn process_github_command(args: &ArgMatches) -> i32 {
     let response = match args.subcommand() {
-        ("artifacts",  Some(sub_m)) => { upload_github_artifacts(sub_m) },
-        ("create-release",  Some(sub_m)) => { create_release(sub_m) }
-        _ => Err(CommandError::new(ErrorCodes::Unknown, format!("No command avaliable. {:?}", args)))
+        ("artifacts", Some(sub_m)) => upload_github_artifacts(sub_m),
+        ("create-release", Some(sub_m)) => create_release(sub_m),
+        _ => Err(CommandError::new(
+            ErrorCodes::Unknown,
+            format!("No command avaliable. {:?}", args),
+        )),
     };
 
     return match response {
@@ -60,10 +63,20 @@ pub fn process_github_command(args: &ArgMatches) -> i32 {
 }
 
 fn make_github(args: &ArgMatches) -> Result<GitHubImpl, CommandError> {
-      return match GitHubImpl::new(args) {
-        Err(GitHubError::UnableToCreateCore(code)) => return Err(CommandError::new(ErrorCodes::Unknown, s!(code.description()))),
-        Err(unknown) => return Err(CommandError::new(ErrorCodes::Unknown, format!("Unknown Error! {:?}", unknown))),
-        Ok(v) => Ok(v)
+    return match GitHubImpl::new(args) {
+        Err(GitHubError::UnableToCreateCore(code)) => {
+            return Err(CommandError::new(
+                ErrorCodes::Unknown,
+                s!(code.description()),
+            ))
+        }
+        Err(unknown) => {
+            return Err(CommandError::new(
+                ErrorCodes::Unknown,
+                format!("Unknown Error! {:?}", unknown),
+            ))
+        }
+        Ok(v) => Ok(v),
     };
 }
 
@@ -94,9 +107,11 @@ fn upload_github_artifacts(args: &ArgMatches) -> Result<(), CommandError> {
     let version = project.get_version();
 
     return match github.add_artifacts_to_release(version.to_string(), file_map) {
-        Err(GitHubError::FilesDoesNotExist(files)) => 
-            Err(CommandError::new(ErrorCodes::FileDoesNotExist, format!("File(s) `{}` do not exist", files.join(", ")))),
-        _ => Ok(())
+        Err(GitHubError::FilesDoesNotExist(files)) => Err(CommandError::new(
+            ErrorCodes::FileDoesNotExist,
+            format!("File(s) `{}` do not exist", files.join(", ")),
+        )),
+        _ => Ok(()),
     };
 }
 
@@ -106,15 +121,24 @@ fn create_release(args: &ArgMatches) -> Result<(), CommandError> {
     let project = build_project(path).unwrap();
     let version = project.get_version();
 
-    let message_contents = cli_shared::extract_message(args, format!("Tagging version {}.", version.to_string()));
+    let message_contents =
+        cli_shared::extract_message(args, format!("Tagging version {}.", version.to_string()));
 
     let github = make_github(args)?;
 
-    return match github.create_release(repo.get_head(), version, message_contents, args.is_present("draft-release")) {
+    return match github.create_release(
+        repo.get_head(),
+        version,
+        message_contents,
+        args.is_present("draft-release"),
+    ) {
         Err(v) => {
             error!("Unable to create release! {:?}", v);
-            Err(CommandError::new(ErrorCodes::Unknown, s!("Unable to create release")))
-        }, 
-        Ok(_) => Ok(())
+            Err(CommandError::new(
+                ErrorCodes::Unknown,
+                s!("Unable to create release"),
+            ))
+        }
+        Ok(_) => Ok(()),
     };
 }
