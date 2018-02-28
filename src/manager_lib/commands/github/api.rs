@@ -95,7 +95,7 @@ impl GitHub for GitHubImpl {
         let client = self.make_client();
 
         let url = self.build_base_url(vec!["releases"]);
-        debug!("URL to pose to: {}", url);
+        debug!("URL to post to: {}", url);
 
         let uri = match url.parse::<HyperUri>() {
             Ok(v) => v,

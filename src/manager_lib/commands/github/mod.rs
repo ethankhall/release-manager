@@ -110,7 +110,11 @@ fn create_release(args: &ArgMatches) -> Result<(), CommandError> {
 
     let github = make_github(args)?;
 
-    github.create_release(repo.get_head(), version, message_contents, args.is_present("draft-release"));
-
-    return Ok(());
+    return match github.create_release(repo.get_head(), version, message_contents, args.is_present("draft-release")) {
+        Err(v) => {
+            error!("Unable to create release! {:?}", v);
+            Err(CommandError::new(ErrorCodes::Unknown, s!("Unable to create release")))
+        }, 
+        Ok(_) => Ok(())
+    };
 }
