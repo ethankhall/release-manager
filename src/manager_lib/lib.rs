@@ -6,6 +6,7 @@ extern crate fern;
 extern crate futures;
 extern crate git2;
 extern crate hyper;
+extern crate hyper_tls;
 #[macro_use]
 extern crate json;
 #[macro_use]

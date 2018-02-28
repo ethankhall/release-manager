@@ -12,6 +12,7 @@ use semver::Version;
 use url::Url;
 use json::parse;
 use clap::ArgMatches;
+use hyper_tls::HttpsConnector;
 
 use super::super::cli_shared;
 
@@ -99,8 +100,10 @@ impl GitHubImpl {
         };
     }
 
-    fn make_client(&self) -> Client<HttpConnector> {
-        return Client::new(&self.core.handle());
+    fn make_client(&self) -> Client<HttpsConnector<HttpConnector>> {
+        return Client::configure()
+            .connector(HttpsConnector::new(4, &&self.core.handle()).unwrap())
+            .build(&self.core.handle());
     }
 }
 
@@ -140,8 +143,13 @@ impl GitHub for GitHubImpl {
             .headers_mut()
             .set_raw("Authorization", format!("token {}", self.api_token));
 
+        trace!("Request to be sent: {:?}", &request);
+
         let response = match client.request(request).wait() {
-            Err(err) => return Err(GitHubError::CommunicationError),
+            Err(err) => {
+                trace!("Request Error: {:?}", err);
+                return Err(GitHubError::CommunicationError);
+            }
             Ok(response) => response,
         };
 

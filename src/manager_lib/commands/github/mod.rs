@@ -133,7 +133,7 @@ fn create_release(args: &ArgMatches) -> Result<(), CommandError> {
         args.is_present("draft-release"),
     ) {
         Err(v) => {
-            error!("Unable to create release! {:?}", v);
+            trace!("Unable to create release! {:?}", v);
             Err(CommandError::new(
                 ErrorCodes::Unknown,
                 s!("Unable to create release"),
