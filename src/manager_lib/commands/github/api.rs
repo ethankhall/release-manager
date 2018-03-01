@@ -2,10 +2,14 @@ use std::vec::Vec;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::io::Error;
+use std::boxed::Box;
+use std::ops::Deref;
 
-use futures::{Future, Stream};
+use futures::{Future, Stream, future};
 use hyper::{Client, Method, Request, StatusCode};
+use hyper::header::{Authorization, Accept, UserAgent, qitem};
 use hyper::client::HttpConnector;
+use hyper::Error as HyperError;
 use hyper::Uri as HyperUri;
 use tokio_core::reactor::Core;
 use semver::Version;
@@ -13,6 +17,7 @@ use url::Url;
 use json::parse;
 use clap::ArgMatches;
 use hyper_tls::HttpsConnector;
+use hyper::mime::Mime;
 
 use super::super::cli_shared;
 
@@ -21,7 +26,6 @@ pub(crate) struct GitHubImpl {
     github_api: String,
     project_name: String,
     repo_name: String,
-    core: Core,
 }
 
 #[derive(Debug)]
@@ -55,13 +59,6 @@ impl GitHubImpl {
             .collect();
         let (project, repo) = (path[0], path[1]);
 
-        let core = match Core::new() {
-            Ok(v) => v,
-            Err(error) => {
-                return Err(GitHubError::UnableToCreateCore(error));
-            }
-        };
-
         let github = GitHubImpl {
             api_token: args.value_of(cli_shared::GITHUB_API_TOKEN)
                 .expect("GitHub API Token not provided")
@@ -69,7 +66,6 @@ impl GitHubImpl {
             github_api: s!("https://api.github.com"),
             project_name: project.into(),
             repo_name: repo.into(),
-            core: core,
         };
 
         return Ok(github);
@@ -100,10 +96,18 @@ impl GitHubImpl {
         };
     }
 
-    fn make_client(&self) -> Client<HttpsConnector<HttpConnector>> {
-        return Client::configure()
-            .connector(HttpsConnector::new(4, &&self.core.handle()).unwrap())
-            .build(&self.core.handle());
+    fn make_external_parts<'a>(&self) -> Result<(Core, Client<HttpsConnector<HttpConnector>>), GitHubError> {
+        let core = match Core::new() {
+            Ok(v) => v,
+            Err(error) => {
+                return Err(GitHubError::UnableToCreateCore(error));
+            }
+        };        
+        let client = Client::configure()
+            .connector(HttpsConnector::new(4, &core.handle()).unwrap())
+            .build(&core.handle());
+
+        return Ok((core, client));
     }
 }
 
@@ -115,7 +119,10 @@ impl GitHub for GitHubImpl {
         body: String,
         draft: bool,
     ) -> Result<(), GitHubError> {
-        let client = self.make_client();
+        let (mut core, client) = match self.make_external_parts() {
+            Ok((core, client)) => (core, client),
+            Err(err) => return Err(err)
+        };
 
         let url = self.build_base_url(vec!["releases"]);
         debug!("URL to post to: {}", url);
@@ -137,39 +144,43 @@ impl GitHub for GitHubImpl {
             "prerelease" => false
         };
 
+        let mime: Mime = "application/vnd.github.v3+json".parse().unwrap();
+        let user_agent = UserAgent::new(format!("release-manager/{}", env!("CARGO_PKG_VERSION")));
         let mut request = Request::new(Method::Post, uri);
         request.set_body(body.dump());
-        request
-            .headers_mut()
-            .set_raw("Authorization", format!("token {}", self.api_token));
+        request.headers_mut().set(Authorization(format!("token {}", self.api_token)));
+        request.headers_mut().set(Accept(vec![qitem(mime)]));
+        request.headers_mut().set(user_agent);
 
         trace!("Request to be sent: {:?}", &request);
 
-        let response = match client.request(request).wait() {
+        let work = client.request(request).and_then(|res| {
+            let status = Box::new(res.status());
+
+            res.body().fold(Vec::new(), |mut v, chunk| {
+                v.extend(&chunk[..]);
+                future::ok::<_, HyperError>(v)
+            }).and_then(|chunks| {
+                let bdy = String::from_utf8(chunks).unwrap();
+                future::ok::<_, HyperError>((status, s!(bdy)))
+            })
+        });
+
+        let (status, body) = match core.run(work) {
+            Ok((status, body)) => (status, String::from(body)),
             Err(err) => {
                 trace!("Request Error: {:?}", err);
-                return Err(GitHubError::CommunicationError);
+                return Err(GitHubError::CommunicationError)
             }
-            Ok(response) => response,
         };
-
-        if response.status() != StatusCode::Created {
-            error!("Unable to create release!");
-            debug!("Status code was {}", response.status());
-            return Err(GitHubError::UnableToCreateRelease(response.status()));
-        }
-
-        let body = response
-            .body()
-            .concat2()
-            .wait()
-            .map(|chunk| {
-                let v = chunk.to_vec();
-                String::from_utf8_lossy(&v).to_string()
-            })
-            .unwrap();
-
+        
         trace!("Body from GitHub API: {}", body);
+
+        let status = *status.deref();
+        if status != StatusCode::Created {
+            debug!("Status code was {}", status);
+            return Err(GitHubError::UnableToCreateRelease(status));
+        }
 
         let json_body = parse(&body).unwrap();
         trace!("Reponse from github: {}", json_body.dump());
