@@ -15,6 +15,7 @@ mod api;
 
 pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
     let github_command = SubCommand::with_name("artifacts")
+        .setting(AppSettings::Hidden)
         .about("Add artifacts to github release")
         .arg(cli_shared::github_token())
         .arg(cli_shared::github_path())

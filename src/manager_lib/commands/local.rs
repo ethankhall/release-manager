@@ -40,7 +40,7 @@ pub fn project_clap<'a, 'b>() -> App<'a, 'b> {
             ArgGroup::with_name("version-options")
                 .required(true)
                 .args(&[
-                    "set-version",
+                    "at-version",
                     "bump-major",
                     "bump-minor",
                     "bump-patch",
