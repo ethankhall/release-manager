@@ -1,23 +1,14 @@
 use std::vec::Vec;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
-use std::io::Error;
-use std::boxed::Box;
-use std::ops::Deref;
 
-use futures::{Future, Stream, future};
-use hyper::{Client, Method, Request, StatusCode};
-use hyper::header::{Authorization, Accept, UserAgent, qitem};
-use hyper::client::HttpConnector;
-use hyper::Error as HyperError;
+use hyper::{Request, Method, StatusCode};
 use hyper::Uri as HyperUri;
-use tokio_core::reactor::Core;
 use semver::Version;
 use url::Url;
-use json::parse;
+use json::{self, parse,JsonValue};
 use clap::ArgMatches;
-use hyper_tls::HttpsConnector;
-use hyper::mime::Mime;
+use super::super::super::http::HttpRequester;
 
 use super::super::cli_shared;
 
@@ -32,8 +23,9 @@ pub(crate) struct GitHubImpl {
 pub enum GitHubError {
     FilesDoesNotExist(Vec<String>),
     UnableToCreateRelease(StatusCode),
-    UnableToCreateCore(Error),
+    UnableToCreateTree,
     CommunicationError,
+    UnableToParseResponse,
     UnableToMakeURI,
 }
 
@@ -45,6 +37,7 @@ pub trait GitHub {
         body: String,
         draft: bool,
     ) -> Result<(), GitHubError>;
+    fn update_files(&self, head: String, files: HashMap<String, String>) -> Result<(), GitHubError>;
     fn add_artifacts_to_release(
         &self,
         release: String,
@@ -71,7 +64,7 @@ impl GitHubImpl {
         return Ok(github);
     }
 
-    fn build_base_url<S: AsRef<str>>(&self, args: Vec<S>) -> String {
+    fn build_base_url<S: AsRef<str>>(&self, args: Vec<S>) -> Result<HyperUri, GitHubError> {
         let mut url = Url::parse(&self.github_api).expect("Unable to get base GitHub Url");
         {
             let mut path = url.path_segments_mut().expect("Cannot get path");
@@ -79,10 +72,38 @@ impl GitHubImpl {
             path.extend(args);
         }
 
-        return s!(url.as_str());
+        let url = s!(url.as_str());
+
+         return match url.parse::<HyperUri>() {
+            Ok(v) => Ok(v),
+            Err(_) => {
+                return Err(GitHubError::UnableToMakeURI);
+            }
+        };
     }
 
-    fn validate_files(artifacts: &BTreeMap<String, PathBuf>) -> Option<GitHubError> {
+    fn handle_network_request(&self, uri: HyperUri, method: Method, body: JsonValue) -> Result<JsonValue, GitHubError> {
+        trace!("Body to send {:?} => {:?}", uri, json::stringify(body.clone()));
+
+        let mut request = Request::new(method, uri);
+        request.set_body(body.dump());
+        HttpRequester::set_default_headers(request.headers_mut(), Some("application/vnd.github.v3+json"), Some(self.api_token.clone()));
+        let http_requester = HttpRequester::new();
+        return match http_requester.make_request(request) {
+            Err(_) => Err(GitHubError::CommunicationError),
+            Ok((status, body)) => {
+                match status {
+                    StatusCode::Created => parse(&body).map_err(|_| GitHubError::UnableToParseResponse),
+                    _ => {
+                        debug!("Status code was {}", status);
+                        Err(GitHubError::UnableToCreateRelease(status))
+                    }
+                }
+            }
+        };
+    }
+
+    fn validate_files(artifacts: &BTreeMap<String, PathBuf>) -> Result<(), GitHubError> {
         let missing_files: Vec<String> = artifacts
             .into_iter()
             .filter(|&(_, value)| !value.exists())
@@ -90,24 +111,10 @@ impl GitHubImpl {
             .collect();
 
         return if missing_files.is_empty() {
-            None
+            Ok(())
         } else {
-            Some(GitHubError::FilesDoesNotExist(missing_files))
+            Err(GitHubError::FilesDoesNotExist(missing_files))
         };
-    }
-
-    fn make_external_parts<'a>(&self) -> Result<(Core, Client<HttpsConnector<HttpConnector>>), GitHubError> {
-        let core = match Core::new() {
-            Ok(v) => v,
-            Err(error) => {
-                return Err(GitHubError::UnableToCreateCore(error));
-            }
-        };        
-        let client = Client::configure()
-            .connector(HttpsConnector::new(4, &core.handle()).unwrap())
-            .build(&core.handle());
-
-        return Ok((core, client));
     }
 }
 
@@ -119,20 +126,8 @@ impl GitHub for GitHubImpl {
         body: String,
         draft: bool,
     ) -> Result<(), GitHubError> {
-        let (mut core, client) = match self.make_external_parts() {
-            Ok((core, client)) => (core, client),
-            Err(err) => return Err(err)
-        };
-
-        let url = self.build_base_url(vec!["releases"]);
-        debug!("URL to post to: {}", url);
-
-        let uri = match url.parse::<HyperUri>() {
-            Ok(v) => v,
-            Err(_) => {
-                return Err(GitHubError::UnableToMakeURI);
-            }
-        };
+        let uri = self.build_base_url(vec!["releases"])?;
+        debug!("URL to post to: {}", uri);
 
         let release_name = format!("v{}", version.to_string());
         let body = object!{
@@ -144,47 +139,67 @@ impl GitHub for GitHubImpl {
             "prerelease" => false
         };
 
-        let mime: Mime = "application/vnd.github.v3+json".parse().unwrap();
-        let user_agent = UserAgent::new(format!("release-manager/{}", env!("CARGO_PKG_VERSION")));
-        let mut request = Request::new(Method::Post, uri);
-        request.set_body(body.dump());
-        request.headers_mut().set(Authorization(format!("token {}", self.api_token)));
-        request.headers_mut().set(Accept(vec![qitem(mime)]));
-        request.headers_mut().set(user_agent);
-
-        trace!("Request to be sent: {:?}", &request);
-
-        let work = client.request(request).and_then(|res| {
-            let status = Box::new(res.status());
-
-            res.body().fold(Vec::new(), |mut v, chunk| {
-                v.extend(&chunk[..]);
-                future::ok::<_, HyperError>(v)
-            }).and_then(|chunks| {
-                let bdy = String::from_utf8(chunks).unwrap();
-                future::ok::<_, HyperError>((status, s!(bdy)))
-            })
-        });
-
-        let (status, body) = match core.run(work) {
-            Ok((status, body)) => (status, String::from(body)),
-            Err(err) => {
-                trace!("Request Error: {:?}", err);
-                return Err(GitHubError::CommunicationError)
-            }
+        return match self.handle_network_request(uri, Method::Post, body) {
+            Ok(_) => Ok(()),
+            Err(x) => Err(x)
         };
-        
-        trace!("Body from GitHub API: {}", body);
+    }
 
-        let status = *status.deref();
-        if status != StatusCode::Created {
-            debug!("Status code was {}", status);
-            return Err(GitHubError::UnableToCreateRelease(status));
+    fn update_files(&self, head: String, files: HashMap<String, String>) -> Result<(), GitHubError> {
+        let mut tree_entries: Vec<JsonValue> = vec![];
+
+        for (name, entry) in files {
+            let tree_entry = object!{
+                "path" => name,
+                "mode" => "100644",
+                "type" => "blob",
+                "content" => entry
+            };
+
+            tree_entries.push(tree_entry);
         }
 
-        let json_body = parse(&body).unwrap();
-        trace!("Reponse from github: {}", json_body.dump());
-        return Ok(());
+        let body = object!{
+            "base_tree" => head.clone(),
+            "tree" => tree_entries,
+        };
+
+        let response = self.handle_network_request(self.build_base_url(vec!["git", "trees"])?, Method::Post, body)?;
+        let tree_id = match response {
+            JsonValue::Object(obj) => s!(obj.get("sha").unwrap().as_str().unwrap()),
+            _ => return Err(GitHubError::UnableToCreateTree)
+        };
+        trace!("New Tree ID: {:?}", tree_id);
+
+        let uri = self.build_base_url(vec!["git", "commits"])?;
+
+        let body = object! {
+            "message" => "Updating the to the next version.\n[skip ci]",
+            "tree" => tree_id,
+            "parents" => vec![head],
+            "committer" => object!{
+                "name" => "Release Manager CI",
+                "email" => "ci@release-manager.com"
+            }
+        };
+
+        let response = self.handle_network_request(self.build_base_url(vec!["git", "commits"])?, Method::Post, body)?;
+        let uri = self.build_base_url(vec!["git", "refs", "heads", "master"])?;
+
+        let new_commit_id = match response {
+            JsonValue::Object(obj) => s!(obj.get("sha").unwrap().as_str().unwrap()),
+            _ => return Err(GitHubError::UnableToCreateTree)
+        };
+        trace!("New Tree ID: {:?}", new_commit_id);
+
+        let body = object!{
+            "sha" => new_commit_id
+        };
+
+        return match self.handle_network_request(self.build_base_url(vec!["git", "commits"])?, Method::Patch, body) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e)
+        };
     }
 
     fn add_artifacts_to_release(
@@ -193,8 +208,8 @@ impl GitHub for GitHubImpl {
         artifacts: BTreeMap<String, PathBuf>,
     ) -> Result<(), GitHubError> {
         match GitHubImpl::validate_files(&artifacts) {
-            None => {}
-            Some(value) => {
+            Ok(_) => {}
+            Err(value) => {
                 return Err(value);
             }
         }

@@ -6,7 +6,7 @@ extern crate manager_lib;
 
 use clap::{App, AppSettings, Arg, ArgGroup};
 
-use manager_lib::commands::project::{process_project_command, project_clap};
+use manager_lib::commands::local::{process_project_command, project_clap};
 use manager_lib::commands::github::{github_clap, process_github_command};
 use manager_lib::logging::configure_logging;
 

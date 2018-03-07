@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
-use std::boxed::Box;
+use std::sync::Arc;
 use std::ffi::OsString;
+use std::env;
+use std::collections::HashMap;
 
 use semver::Version;
 use toml;
@@ -8,14 +10,21 @@ use toml_edit::{value, Document};
 
 use file::{read_file, write_file};
 
-pub(crate) fn build_project(path: PathBuf) -> Option<Box<Project>> {
+pub(crate) fn build_project(path: Option<PathBuf>) -> Option<Arc<Project>> {
+    let path = match path {
+        None => env::current_dir().unwrap(),
+        Some(x) => x,
+    };
+
+    trace!("Starting search from {:?}", path);
+
     loop {
         let files = path.read_dir().unwrap();
         for file in files {
             let file_path = file.unwrap();
             if file_path.file_name() == OsString::from("Cargo.toml") {
                 let path = file_path.path();
-                return Some(Box::new(CargoProject::new(path.parent().unwrap())));
+                return Some(Arc::new(CargoProject::new(path.parent().unwrap())));
             }
         }
 
@@ -28,8 +37,10 @@ pub(crate) fn build_project(path: PathBuf) -> Option<Box<Project>> {
 }
 
 pub(crate) trait Project {
+    fn project_root(&self) -> PathBuf;
     fn get_version(&self) -> Version;
     fn update_version(&self, Version);
+    fn render_version_files(&self, Version) -> HashMap<String, String>;
     fn get_version_files(&self) -> Vec<PathBuf>;
 }
 
@@ -56,6 +67,10 @@ impl CargoProject {
 }
 
 impl Project for CargoProject {
+    fn project_root(&self) -> PathBuf {
+        return PathBuf::from(self.project_root.clone());
+    }
+
     fn get_version_files(&self) -> Vec<PathBuf> {
         return vec![self.get_cargo_file()];
     }
@@ -85,5 +100,19 @@ impl Project for CargoProject {
         doc["package"]["version"] = value(version.to_string());
 
         write_file(doc.to_string(), cargo_path);
+    }
+
+    fn render_version_files(&self, version: Version) -> HashMap<String, String> {
+        let cargo_path = self.get_cargo_file();
+        let cargo_path = cargo_path.as_path();
+
+        let text = read_file(cargo_path);
+        let mut doc = text.parse::<Document>().expect("invalid doc");
+        doc["package"]["version"] = value(version.to_string());
+
+        let mut map = HashMap::new();
+        map.insert(s!("Cargo.toml"), doc.to_string());
+
+        return map;
     }
 }

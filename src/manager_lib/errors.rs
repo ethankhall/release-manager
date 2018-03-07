@@ -2,6 +2,8 @@ pub enum ErrorCodes {
     Unknown,
     NoRepoFound,
     GitHubError,
+    NetworkCallFailed,
+    UnableToGetHeadSha,
     FileDoesNotExist,
 }
 
@@ -11,10 +13,10 @@ pub struct CommandError {
 }
 
 impl CommandError {
-    pub fn new(error_code: ErrorCodes, message: String) -> CommandError {
+    pub fn new<S: Into<String>>(error_code: ErrorCodes, message: S) -> CommandError {
         return CommandError {
             error_code: error_code,
-            message: message,
+            message: message.into(),
         };
     }
 }

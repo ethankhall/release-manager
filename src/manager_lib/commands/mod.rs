@@ -1,4 +1,4 @@
-pub mod project;
+pub mod local;
 pub mod github;
 
 pub use super::errors::*;
