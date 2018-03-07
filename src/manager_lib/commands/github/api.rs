@@ -1,6 +1,7 @@
 use std::vec::Vec;
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
+use std::boxed::Box;
 
 use hyper::{Request, Method, StatusCode};
 use hyper::Uri as HyperUri;
@@ -8,7 +9,7 @@ use semver::Version;
 use url::Url;
 use json::{self, parse,JsonValue};
 use clap::ArgMatches;
-use super::super::super::http::HttpRequester;
+use super::super::super::http::{self, HttpRequester, DefaultHttpRequester};
 
 use super::super::cli_shared;
 
@@ -17,6 +18,7 @@ pub(crate) struct GitHubImpl {
     github_api: String,
     project_name: String,
     repo_name: String,
+    requester: Box<HttpRequester>,
 }
 
 #[derive(Debug)]
@@ -27,6 +29,7 @@ pub enum GitHubError {
     CommunicationError,
     UnableToParseResponse,
     UnableToMakeURI,
+    UnableToUpdateReference,
 }
 
 pub trait GitHub {
@@ -37,7 +40,7 @@ pub trait GitHub {
         body: String,
         draft: bool,
     ) -> Result<(), GitHubError>;
-    fn update_files(&self, head: String, files: HashMap<String, String>) -> Result<(), GitHubError>;
+    fn update_files(&self, head: String, branch_name: String, files: HashMap<String, String>) -> Result<(), GitHubError>;
     fn add_artifacts_to_release(
         &self,
         release: String,
@@ -59,6 +62,7 @@ impl GitHubImpl {
             github_api: s!("https://api.github.com"),
             project_name: project.into(),
             repo_name: repo.into(),
+            requester: Box::new(DefaultHttpRequester::new())
         };
 
         return Ok(github);
@@ -87,12 +91,12 @@ impl GitHubImpl {
 
         let mut request = Request::new(method, uri);
         request.set_body(body.dump());
-        HttpRequester::set_default_headers(request.headers_mut(), Some("application/vnd.github.v3+json"), Some(self.api_token.clone()));
-        let http_requester = HttpRequester::new();
-        return match http_requester.make_request(request) {
+        http::set_default_headers(request.headers_mut(), Some("application/vnd.github.v3+json"), Some(self.api_token.clone()));
+        return match self.requester.make_request(request) {
             Err(_) => Err(GitHubError::CommunicationError),
             Ok((status, body)) => {
                 match status {
+                    StatusCode::Ok => parse(&body).map_err(|_| GitHubError::UnableToParseResponse),
                     StatusCode::Created => parse(&body).map_err(|_| GitHubError::UnableToParseResponse),
                     _ => {
                         debug!("Status code was {}", status);
@@ -145,7 +149,7 @@ impl GitHub for GitHubImpl {
         };
     }
 
-    fn update_files(&self, head: String, files: HashMap<String, String>) -> Result<(), GitHubError> {
+    fn update_files(&self, head: String, branch_name: String, files: HashMap<String, String>) -> Result<(), GitHubError> {
         let mut tree_entries: Vec<JsonValue> = vec![];
 
         for (name, entry) in files {
@@ -171,8 +175,6 @@ impl GitHub for GitHubImpl {
         };
         trace!("New Tree ID: {:?}", tree_id);
 
-        let uri = self.build_base_url(vec!["git", "commits"])?;
-
         let body = object! {
             "message" => "Updating the to the next version.\n[skip ci]",
             "tree" => tree_id,
@@ -184,7 +186,6 @@ impl GitHub for GitHubImpl {
         };
 
         let response = self.handle_network_request(self.build_base_url(vec!["git", "commits"])?, Method::Post, body)?;
-        let uri = self.build_base_url(vec!["git", "refs", "heads", "master"])?;
 
         let new_commit_id = match response {
             JsonValue::Object(obj) => s!(obj.get("sha").unwrap().as_str().unwrap()),
@@ -196,15 +197,19 @@ impl GitHub for GitHubImpl {
             "sha" => new_commit_id
         };
 
-        return match self.handle_network_request(self.build_base_url(vec!["git", "commits"])?, Method::Patch, body) {
+        let uri = self.build_base_url(vec!["git", "refs", "heads", &branch_name])?;
+        return match self.handle_network_request(uri, Method::Patch, body) {
             Ok(_) => Ok(()),
-            Err(e) => Err(e)
+            Err(e) => {
+                debug!("Unable to update Reference: {:?}", e);
+                Err(GitHubError::UnableToUpdateReference)
+            }
         };
     }
 
     fn add_artifacts_to_release(
         &self,
-        release: String,
+        _release: String,
         artifacts: BTreeMap<String, PathBuf>,
     ) -> Result<(), GitHubError> {
         match GitHubImpl::validate_files(&artifacts) {

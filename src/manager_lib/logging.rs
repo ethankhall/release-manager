@@ -13,7 +13,7 @@ pub fn configure_logging(verbose: i32, quite: bool) {
     };
 
     let mut dispatch = Dispatch::new();
-    if level != Level::Trace {
+    if level != Level::Trace && verbose < 3 {
         dispatch = dispatch
             .level_for("tokio_core", Level::Warn.to_level_filter())
             .level_for("hyper", Level::Warn.to_level_filter());

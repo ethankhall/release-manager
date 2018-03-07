@@ -10,14 +10,10 @@ extern crate hyper_tls;
 #[macro_use]
 extern crate json;
 #[macro_use]
-extern crate lazy_static;
-#[macro_use]
 extern crate log;
 extern crate regex;
 extern crate semver;
 extern crate serde;
-#[macro_use]
-extern crate serde_derive;
 extern crate serde_json;
 extern crate serialize;
 extern crate tokio_core;

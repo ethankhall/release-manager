@@ -4,6 +4,8 @@ pub enum ErrorCodes {
     GitHubError,
     NetworkCallFailed,
     UnableToGetHeadSha,
+    UnableToBumpVersion,
+    UnableToFindBranchNameForSha,
     FileDoesNotExist,
 }
 

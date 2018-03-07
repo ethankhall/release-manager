@@ -12,12 +12,30 @@ use hyper::Error as HyperError;
 
 use super::errors::ErrorCodes;
 
-pub(crate) struct HttpRequester {
+pub(crate) trait HttpRequester {
+    fn make_request(&self, request: Request) -> Result<(StatusCode, String), ErrorCodes>;
 }
 
-impl HttpRequester {
+pub(crate) fn set_default_headers(headers: &mut Headers, accept: Option<&str>, token: Option<String>) {
+    if token.is_some() {
+        headers.set(Authorization(format!("token {}", token.unwrap())));
+    }
+
+    if accept.is_some() {
+        let mime: Mime = accept.unwrap().parse().unwrap();
+        headers.set(Accept(vec![qitem(mime)]));
+    }
+
+    let user_agent = UserAgent::new(format!("release-manager/{}", env!("CARGO_PKG_VERSION")));
+    headers.set(user_agent);
+}
+
+pub(crate) struct DefaultHttpRequester {
+}
+
+impl DefaultHttpRequester {
     pub(crate) fn new() -> Self {
-        return HttpRequester {
+        return DefaultHttpRequester {
         };
     }
 
@@ -29,8 +47,10 @@ impl HttpRequester {
 
         return (core, client);
     }
+}
 
-    pub(crate) fn make_request(&self, request: Request) -> Result<(StatusCode, String), ErrorCodes> {
+impl HttpRequester for DefaultHttpRequester {
+    fn make_request(&self, request: Request) -> Result<(StatusCode, String), ErrorCodes> {
         trace!("Request to be sent: {:?}", &request);
 
         let (mut core, client) = self.make_external_parts();
@@ -59,19 +79,5 @@ impl HttpRequester {
         trace!("Body from GitHub API: {}", body);
 
         return Ok((*status.deref(), body));
-    }
-
-    pub(crate) fn set_default_headers(headers: &mut Headers, accept: Option<&str>, token: Option<String>) {
-        if token.is_some() {
-            headers.set(Authorization(format!("token {}", token.unwrap())));
-        }
-
-        if accept.is_some() {
-            let mime: Mime = accept.unwrap().parse().unwrap();
-            headers.set(Accept(vec![qitem(mime)]));
-        }
-
-        let user_agent = UserAgent::new(format!("release-manager/{}", env!("CARGO_PKG_VERSION")));
-        headers.set(user_agent);
     }
 }
