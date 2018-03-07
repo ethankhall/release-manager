@@ -1,5 +1,4 @@
-#![feature(slice_concat_ext)]
-#![feature(rustc_private)]
+#![deny(unused_extern_crates)]
 extern crate chrono;
 extern crate clap;
 extern crate fern;
@@ -11,11 +10,7 @@ extern crate hyper_tls;
 extern crate json;
 #[macro_use]
 extern crate log;
-extern crate regex;
 extern crate semver;
-extern crate serde;
-extern crate serde_json;
-extern crate serialize;
 extern crate tokio_core;
 extern crate toml;
 extern crate toml_edit;

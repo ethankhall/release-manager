@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::slice::SliceConcatExt;
 use std::ops::Deref;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
