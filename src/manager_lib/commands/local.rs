@@ -96,15 +96,15 @@ fn update_version(args: &ArgMatches) -> Result<(), CommandError> {
                     minor: version.minor,
                     patch: version.patch,
                     pre: vec![
-                        Identifier::AlphaNumeric(s!("SNAPSHOT")),
+                        Identifier::AlphaNumeric(s!("SNAPSHOT"))
+                    ],
+                    build: vec![
                         Identifier::Numeric(
                             SystemTime::now()
                                 .duration_since(UNIX_EPOCH)
                                 .unwrap()
-                                .as_secs(),
-                        ),
+                                .as_secs())
                     ],
-                    build: vec![],
                 };
             }
             _ => unreachable!(),

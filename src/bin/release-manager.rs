@@ -40,10 +40,10 @@ fn main() {
     );
 
     let code: i32 = match matches.subcommand() {
-        ("project", Some(sub_m)) => process_project_command(sub_m),
+        ("local", Some(sub_m)) => process_project_command(sub_m),
         ("github", Some(sub_m)) => process_github_command(sub_m),
         _ => {
-            error!("No command avalibe");
+            error!("No command avaliable");
             -1
         }
     };

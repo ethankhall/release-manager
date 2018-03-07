@@ -20,6 +20,7 @@ extern crate tokio_core;
 extern crate toml;
 extern crate toml_edit;
 extern crate url;
+extern crate ini;
 
 #[macro_export]
 macro_rules! s {
