@@ -2,7 +2,7 @@ use std::path::{PathBuf};
 use std::vec::Vec;
 
 use git2::Repository as GitRepository;
-use git2::{ObjectType};
+use git2::{ObjectType, Oid};
 use super::errors::*;
 
 fn find_git_repo(root_path: PathBuf) -> Result<GitRepository, ErrorCodes> {
@@ -44,29 +44,28 @@ pub(crate) fn find_last_commit(root_path: PathBuf) -> Result<String, ErrorCodes>
 
 pub(crate) fn find_branch_for_commit(root_path: PathBuf, sha: String) -> Result<String, ErrorCodes> {
     let repo = find_git_repo(root_path)?;
+    let oid = Oid::from_str(&sha).unwrap();
+    trace!("SHA: {}", oid);
 
-    let branches = repo.branches(None).expect("To get a Branches");
-    for branch_result in branches {
-        let (branch, _) = branch_result.expect("To get Branch");
-        let branch_parts: Vec<String> = branch
-            .get()
-            .target()
-            .expect("To get a Oid from a reference")
-            .as_bytes()
-            .to_vec()
-            .iter()
-            .map(|x| format!("{:02x}", x))
-            .collect();
-        let branch_id = branch_parts.join("");
+    let branch = repo.branches(None).expect("To be able to get branches")
+        .find(|result| {
+            match result {
+                &Ok((ref branch, _)) => {
+                    branch.get().target() == Some(oid)
+                },
+                _ => false
+            }
+        });
 
-        let name = {
-            s!(branch.name().expect("Branch to have a name.").expect("Branch to have a name."))
-        };
-
-        if branch_id == sha {
-            return Ok(name)
-        }
-    }
-
-    return Err(ErrorCodes::UnableToFindBranchNameForSha);
+    return match branch {
+        Some(Ok((ref branch, _))) => {
+            match branch.name() {
+                Ok(name) => {
+                    Ok(s!(name.unwrap()))
+                },
+                Err(_) => Err(ErrorCodes::UnableToFindBranchNameForSha)
+            }
+        },
+        None | Some(Err(_))=> Err(ErrorCodes::UnableToFindBranchNameForSha)
+    };
 }
