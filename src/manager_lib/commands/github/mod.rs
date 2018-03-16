@@ -17,7 +17,7 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
         .alias("artifact")
         .about("Add artifacts to github release")
         .arg(cli_shared::github_token())
-        .arg(cli_shared::github_path())
+        .arg(cli_shared::path_to_config())
         .arg(Arg::with_name("file")
             .help("Files to be uploaded. Supports both `path`, and `name=path`. When name is omitted, the filename will be used.")
             .multiple(true)
@@ -26,7 +26,7 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
     let create_release = SubCommand::with_name("release-and-bump")
         .about("Tag the current branch with the version in the metadata file for the project then bump the patch version.")
         .arg(cli_shared::github_token())
-        .arg(cli_shared::github_path())
+        .arg(cli_shared::path_to_config())
         .arg(Arg::with_name("draft-release")
             .long("draft")
             .help("Release in GitHub will be marked as draft"))
@@ -37,7 +37,7 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
     let release = SubCommand::with_name("release")
         .about("Tag the current branch with the version in the metadata file for the project.")
         .arg(cli_shared::github_token())
-        .arg(cli_shared::github_path())
+        .arg(cli_shared::path_to_config())
         .arg(Arg::with_name("draft-release")
             .long("draft")
             .help("Release in GitHub will be marked as draft"))
@@ -48,7 +48,7 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
     let bump = SubCommand::with_name("bump")
         .about("Bump the current version on GitHub.")
         .arg(cli_shared::github_token())
-        .arg(cli_shared::github_path());
+        .arg(cli_shared::path_to_config());
 
     return App::new("github")
         .about("Upload artifacts to different sources.")

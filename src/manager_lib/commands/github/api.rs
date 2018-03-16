@@ -18,6 +18,7 @@ use super::super::super::errors::ErrorCodes;
 use super::super::super::http::{self, HttpRequester, DefaultHttpRequester};
 use super::super::cli_shared;
 use super::super::super::file;
+use super::super::super::config;
 
 pub(crate) struct GitHubImpl {
     api_token: String,
@@ -58,18 +59,14 @@ pub trait GitHub {
 
 impl GitHubImpl {
     pub(crate) fn new(args: &ArgMatches) -> Result<GitHubImpl, GitHubError> {
-        let path: Vec<&str> = args.values_of(cli_shared::GITHUB_PATH)
-            .expect("GitHub path to be set")
-            .collect();
-        let (project, repo) = (path[0], path[1]);
-
+        let config = config::parse_toml(args.value_of(cli_shared::CONFIG_FILE).expect("Config file to exist."));
         let github = GitHubImpl {
             api_token: args.value_of(cli_shared::GITHUB_API_TOKEN)
                 .expect("GitHub API Token not provided")
                 .into(),
             github_api: s!("https://api.github.com"),
-            project_name: project.into(),
-            repo_name: repo.into(),
+            project_name: config.github.owner,
+            repo_name: config.github.repo,
             requester: Box::new(DefaultHttpRequester::new())
         };
 

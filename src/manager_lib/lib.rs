@@ -18,6 +18,8 @@ extern crate url;
 extern crate ini;
 extern crate mime_guess;
 extern crate mime;
+#[macro_use]
+extern crate serde_derive;
 
 #[macro_export]
 macro_rules! s {
@@ -28,6 +30,7 @@ pub mod commands;
 pub mod logging;
 pub mod errors;
 pub(crate) mod http;
+pub(crate) mod config;
 pub(crate) mod file;
 pub(crate) mod git;
 pub(crate) mod version_manager;

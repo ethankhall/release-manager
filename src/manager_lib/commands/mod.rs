@@ -5,23 +5,31 @@ pub use super::errors::*;
 
 pub(crate) mod cli_shared {
     use clap::{Arg, ArgGroup, ArgMatches};
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use super::super::file::read_file_to_string;
 
-    // static GITHUB_API_USER: &'static str = "github-api-user";
     pub static GITHUB_API_TOKEN: &'static str = "github-api-token";
-    pub static GITHUB_PATH: &'static str = "github-path";
     pub static MESSAGE: &'static str = "message";
     pub static MESSAGE_FILE: &'static str = "message-file";
+    pub static CONFIG_FILE: &'static str = "config";
 
-    // pub(crate) fn github_user<'a, 'b>() -> Arg<'a, 'b> {
-    //     return Arg::with_name(GITHUB_API_USER)
-    //         .long("github-user")
-    //         .help("GitHub user to do action.")
-    //         .required(true)
-    //         .env("GITHUB_USER");
-    // }
+    fn file_exists(val: String) -> Result<(), String> {
+        return if PathBuf::from(&val).exists() {
+            Ok(())
+        } else {
+            Err(format!("File {} does not exist!", val))
+        }
+    }
+
+    pub(crate) fn path_to_config<'a, 'b>() -> Arg<'a, 'b> {
+        return Arg::with_name(CONFIG_FILE)
+            .long(CONFIG_FILE)
+            .help("Config file for work to be done by release-manager.")
+            .takes_value(true)
+            .required(true)
+            .validator(file_exists);
+    }
 
     pub(crate) fn github_token<'a, 'b>() -> Arg<'a, 'b> {
         return Arg::with_name(GITHUB_API_TOKEN)
@@ -29,18 +37,7 @@ pub(crate) mod cli_shared {
             .help("Auth token for Github. It's recommended to use the GITHUB_TOKEN environment variable.")
             .required(true)
             .env("GITHUB_TOKEN")
-            .hide_default_value(true);
-    }
-
-    pub(crate) fn github_path<'a, 'b>() -> Arg<'a, 'b> {
-        return Arg::with_name(GITHUB_PATH)
-            .long("path")
-            .help("GitHub path to project. Like: ethankhall/release-manager")
-            .takes_value(true)
-            .number_of_values(2)
-            .use_delimiter(true)
-            .required(true)
-            .value_delimiter("/");
+            .hide_env_values(true);
     }
 
     pub(crate) fn message<'a, 'b>() -> Arg<'a, 'b> {
