@@ -14,7 +14,7 @@ mod api;
 
 pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
     let github_command = SubCommand::with_name("artifacts")
-        .setting(AppSettings::Hidden)
+        .alias("artifact")
         .about("Add artifacts to github release")
         .arg(cli_shared::github_token())
         .arg(cli_shared::github_path())
@@ -119,10 +119,9 @@ fn upload_github_artifacts(args: &ArgMatches) -> Result<(), CommandError> {
     });
 
     let github = make_github(args)?;
+    let release = format!("v{}", project.get_version());
 
-    let version = project.get_version();
-
-    return match github.add_artifacts_to_release(version.to_string(), file_map) {
+    return match github.add_artifacts_to_release(release, file_map) {
         Err(GitHubError::FilesDoesNotExist(files)) => Err(CommandError::new(
             ErrorCodes::FileDoesNotExist,
             format!("File(s) `{}` do not exist", files.join(", ")),

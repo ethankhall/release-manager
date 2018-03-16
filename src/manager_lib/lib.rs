@@ -16,6 +16,8 @@ extern crate toml;
 extern crate toml_edit;
 extern crate url;
 extern crate ini;
+extern crate mime_guess;
+extern crate mime;
 
 #[macro_export]
 macro_rules! s {

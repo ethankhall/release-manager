@@ -7,7 +7,7 @@ pub(crate) mod cli_shared {
     use clap::{Arg, ArgGroup, ArgMatches};
     use std::path::Path;
 
-    use super::super::file::read_file;
+    use super::super::file::read_file_to_string;
 
     // static GITHUB_API_USER: &'static str = "github-api-user";
     pub static GITHUB_API_TOKEN: &'static str = "github-api-token";
@@ -70,7 +70,7 @@ pub(crate) mod cli_shared {
         let (message, message_file) = (args.value_of(MESSAGE), args.value_of(MESSAGE_FILE));
         let message_contents = if message_file.is_some() {
             let path = Path::new(message_file.unwrap());
-            read_file(&path)
+            read_file_to_string(&path)
         } else if message.is_some() {
             s!(message.unwrap())
         } else {

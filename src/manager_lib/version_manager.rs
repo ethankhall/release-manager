@@ -10,7 +10,7 @@ use toml;
 use toml_edit::{value, Document};
 use ini::Ini;
 
-use file::{read_file, write_file};
+use file::{read_file_to_string, write_file};
 
 const VERSION_PROPERTIES_NAME: &'static str = "version.properties";
 
@@ -75,7 +75,7 @@ impl VersionPropertiesProject {
     fn read_version_file(&self) -> String {
         let version_file = self.get_version_file();
         let version_path = version_file.as_path();
-        return read_file(version_path);
+        return read_file_to_string(version_path);
     }
 
     fn ini_to_string(conf: Ini) -> String {
@@ -160,7 +160,7 @@ impl Project for CargoProject {
         let cargo_path = self.get_cargo_file();
         let cargo_path = cargo_path.as_path();
 
-        let parsed: toml::value::Value = toml::from_str(&read_file(cargo_path)).unwrap();
+        let parsed: toml::value::Value = toml::from_str(&read_file_to_string(cargo_path)).unwrap();
 
         let version = match parsed.get("package").and_then(|x| x.get("version")) {
             Some(value) => value.as_str().unwrap(),
@@ -176,7 +176,7 @@ impl Project for CargoProject {
         let cargo_path = self.get_cargo_file();
         let cargo_path = cargo_path.as_path();
 
-        let text = read_file(cargo_path);
+        let text = read_file_to_string(cargo_path);
         let mut doc = text.parse::<Document>().expect("invalid doc");
         doc["package"]["version"] = value(version.to_string());
 
@@ -187,7 +187,7 @@ impl Project for CargoProject {
         let cargo_path = self.get_cargo_file();
         let cargo_path = cargo_path.as_path();
 
-        let text = read_file(cargo_path);
+        let text = read_file_to_string(cargo_path);
         let mut doc = text.parse::<Document>().expect("invalid doc");
         doc["package"]["version"] = value(version.to_string());
 
