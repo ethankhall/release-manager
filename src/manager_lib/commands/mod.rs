@@ -5,31 +5,13 @@ pub use super::errors::*;
 
 pub(crate) mod cli_shared {
     use clap::{Arg, ArgGroup, ArgMatches};
-    use std::path::{Path, PathBuf};
+    use std::path::{Path};
 
     use super::super::file::read_file_to_string;
 
     pub static GITHUB_API_TOKEN: &'static str = "github-api-token";
     pub static MESSAGE: &'static str = "message";
     pub static MESSAGE_FILE: &'static str = "message-file";
-    pub static CONFIG_FILE: &'static str = "config";
-
-    fn file_exists(val: String) -> Result<(), String> {
-        return if PathBuf::from(&val).exists() {
-            Ok(())
-        } else {
-            Err(format!("File {} does not exist!", val))
-        }
-    }
-
-    pub(crate) fn path_to_config<'a, 'b>() -> Arg<'a, 'b> {
-        return Arg::with_name(CONFIG_FILE)
-            .long(CONFIG_FILE)
-            .help("Config file for work to be done by release-manager.")
-            .takes_value(true)
-            .required(true)
-            .validator(file_exists);
-    }
 
     pub(crate) fn github_token<'a, 'b>() -> Arg<'a, 'b> {
         return Arg::with_name(GITHUB_API_TOKEN)

@@ -14,11 +14,11 @@ use mime_guess::guess_mime_type;
 use mime::Mime;
 
 
+use super::super::super::config::Config;
 use super::super::super::errors::ErrorCodes;
 use super::super::super::http::{self, HttpRequester, DefaultHttpRequester};
 use super::super::cli_shared;
 use super::super::super::file;
-use super::super::super::config;
 
 pub(crate) struct GitHubImpl {
     api_token: String,
@@ -58,15 +58,14 @@ pub trait GitHub {
 }
 
 impl GitHubImpl {
-    pub(crate) fn new(args: &ArgMatches) -> Result<GitHubImpl, GitHubError> {
-        let config = config::parse_toml(args.value_of(cli_shared::CONFIG_FILE).expect("Config file to exist."));
+    pub(crate) fn new(args: &ArgMatches, config: &Config) -> Result<GitHubImpl, GitHubError> {
         let github = GitHubImpl {
             api_token: args.value_of(cli_shared::GITHUB_API_TOKEN)
                 .expect("GitHub API Token not provided")
                 .into(),
             github_api: s!("https://api.github.com"),
-            project_name: config.github.owner,
-            repo_name: config.github.repo,
+            project_name: { config.github.owner.clone() },
+            repo_name: { config.github.repo.clone() },
             requester: Box::new(DefaultHttpRequester::new())
         };
 

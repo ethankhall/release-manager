@@ -6,6 +6,7 @@ use semver::Identifier;
 
 use super::super::version_manager::build_project;
 use super::super::errors::*;
+use super::super::config::Config;
 
 pub fn project_clap<'a, 'b>() -> App<'a, 'b> {
     let create_command = SubCommand::with_name("update-version")
@@ -48,15 +49,20 @@ pub fn project_clap<'a, 'b>() -> App<'a, 'b> {
                 ]),
         );
 
+    let show_version = SubCommand::with_name("show-version")
+        .about("Show the current version");
+
     return App::new("local")
         .about("Local project operations.")
         .setting(AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(create_command);
+        .subcommand(create_command)
+        .subcommand(show_version);
 }
 
-pub fn process_project_command(args: &ArgMatches) -> i32 {
+pub fn process_project_command(args: &ArgMatches, _config: &Config) -> i32 {
     let response = match args.subcommand() {
         ("update-version", Some(m)) => update_version(m),
+        ("show-version", Some(m)) => show_version(m),
         _ => Err(CommandError::new(
             ErrorCodes::Unknown,
             format!("No command avaliable. {:?}", args),
@@ -70,6 +76,13 @@ pub fn process_project_command(args: &ArgMatches) -> i32 {
             value.error_code as i32
         }
     };
+}
+
+fn show_version(_args: &ArgMatches) -> Result<(), CommandError> {
+    let project = build_project(None).unwrap();
+    println!("{}", project.get_version());
+
+    return Ok(());
 }
 
 fn update_version(args: &ArgMatches) -> Result<(), CommandError> {

@@ -29,8 +29,8 @@ macro_rules! s {
 pub mod commands;
 pub mod logging;
 pub mod errors;
+pub mod config;
 pub(crate) mod http;
-pub(crate) mod config;
 pub(crate) mod file;
 pub(crate) mod git;
 pub(crate) mod version_manager;

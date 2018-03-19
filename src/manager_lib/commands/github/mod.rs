@@ -7,6 +7,7 @@ use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use super::super::version_manager::build_project;
 use super::super::errors::*;
 use super::super::git;
+use super::super::config::Config;
 use super::cli_shared;
 use self::api::{GitHub, GitHubError, GitHubImpl};
 
@@ -17,7 +18,6 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
         .alias("artifact")
         .about("Add artifacts to github release")
         .arg(cli_shared::github_token())
-        .arg(cli_shared::path_to_config())
         .arg(Arg::with_name("file")
             .help("Files to be uploaded. Supports both `path`, and `name=path`. When name is omitted, the filename will be used.")
             .multiple(true)
@@ -26,7 +26,6 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
     let create_release = SubCommand::with_name("release-and-bump")
         .about("Tag the current branch with the version in the metadata file for the project then bump the patch version.")
         .arg(cli_shared::github_token())
-        .arg(cli_shared::path_to_config())
         .arg(Arg::with_name("draft-release")
             .long("draft")
             .help("Release in GitHub will be marked as draft"))
@@ -37,7 +36,6 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
     let release = SubCommand::with_name("release")
         .about("Tag the current branch with the version in the metadata file for the project.")
         .arg(cli_shared::github_token())
-        .arg(cli_shared::path_to_config())
         .arg(Arg::with_name("draft-release")
             .long("draft")
             .help("Release in GitHub will be marked as draft"))
@@ -47,8 +45,7 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
 
     let bump = SubCommand::with_name("bump")
         .about("Bump the current version on GitHub.")
-        .arg(cli_shared::github_token())
-        .arg(cli_shared::path_to_config());
+        .arg(cli_shared::github_token());
 
     return App::new("github")
         .about("Upload artifacts to different sources.")
@@ -59,17 +56,17 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
         .subcommand(bump);
 }
 
-pub fn process_github_command(args: &ArgMatches) -> i32 {
+pub fn process_github_command(args: &ArgMatches, config: &Config) -> i32 {
     let response = match args.subcommand() {
-        ("artifacts", Some(sub_m)) => upload_github_artifacts(sub_m),
+        ("artifacts", Some(sub_m)) => upload_github_artifacts(sub_m, config),
         ("release-and-bump", Some(sub_m)) => {
-            match create_release(sub_m) {
-                Ok(_) => bump_version(sub_m),
+            match create_release(sub_m, config) {
+                Ok(_) => bump_version(sub_m, config),
                 Err(err) => Err(err)
             }
         },
-        ("release", Some(sub_m)) => create_release(sub_m),
-        ("bump", Some(sub_m)) => bump_version(sub_m),
+        ("release", Some(sub_m)) => create_release(sub_m, config),
+        ("bump", Some(sub_m)) => bump_version(sub_m, config),
         _ => Err(CommandError::new(
             ErrorCodes::Unknown,
             format!("No command avaliable. {:?}", args),
@@ -85,8 +82,8 @@ pub fn process_github_command(args: &ArgMatches) -> i32 {
     };
 }
 
-fn make_github(args: &ArgMatches) -> Result<GitHubImpl, CommandError> {
-    return match GitHubImpl::new(args) {
+fn make_github(args: &ArgMatches, config: &Config) -> Result<GitHubImpl, CommandError> {
+    return match GitHubImpl::new(args, config) {
         Err(unknown) => {
             return Err(CommandError::new(
                 ErrorCodes::Unknown,
@@ -97,7 +94,7 @@ fn make_github(args: &ArgMatches) -> Result<GitHubImpl, CommandError> {
     };
 }
 
-fn upload_github_artifacts(args: &ArgMatches) -> Result<(), CommandError> {
+fn upload_github_artifacts(args: &ArgMatches, config: &Config) -> Result<(), CommandError> {
     let project = build_project(None).unwrap();
 
     let mut file_map: BTreeMap<String, PathBuf> = BTreeMap::new();
@@ -118,7 +115,7 @@ fn upload_github_artifacts(args: &ArgMatches) -> Result<(), CommandError> {
         file_map.insert(s!(key), file_path);
     });
 
-    let github = make_github(args)?;
+    let github = make_github(args, config)?;
     let release = format!("v{}", project.get_version());
 
     return match github.add_artifacts_to_release(release, file_map) {
@@ -130,14 +127,14 @@ fn upload_github_artifacts(args: &ArgMatches) -> Result<(), CommandError> {
     };
 }
 
-fn create_release(args: &ArgMatches) -> Result<(), CommandError> {
+fn create_release(args: &ArgMatches, config: &Config) -> Result<(), CommandError> {
     let project = build_project(None).unwrap();
     let version = project.get_version();
 
     let message_contents =
         cli_shared::extract_message(args, format!("Tagging version {}.", version.to_string()));
 
-    let github = make_github(args)?;
+    let github = make_github(args, config)?;
 
     let head = match git::find_last_commit(project.deref().project_root()) {
         Err(err) => return Err(CommandError::new(err, "Unable to get last commit")),
@@ -161,7 +158,7 @@ fn create_release(args: &ArgMatches) -> Result<(), CommandError> {
     };
 }
 
-fn bump_version(args: &ArgMatches) -> Result<(), CommandError> {
+fn bump_version(args: &ArgMatches, config: &Config) -> Result<(), CommandError> {
     let project = build_project(None).unwrap();
     let mut version = project.get_version();
 
@@ -175,7 +172,7 @@ fn bump_version(args: &ArgMatches) -> Result<(), CommandError> {
         Ok(v) => v
     };
 
-    let github = make_github(args)?;
+    let github = make_github(args, config)?;
     version.increment_patch();
     let version_files = project.render_version_files(version);
     

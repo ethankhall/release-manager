@@ -2,13 +2,17 @@
 extern crate clap;
 #[macro_use]
 extern crate log;
+#[macro_use]
 extern crate manager_lib;
 
+use std::env;
+use std::path::PathBuf;
 use clap::{App, AppSettings, Arg, ArgGroup};
 
 use manager_lib::commands::local::{process_project_command, project_clap};
 use manager_lib::commands::github::{github_clap, process_github_command};
 use manager_lib::logging::configure_logging;
+use manager_lib::config::parse_toml;
 
 fn main() {
     let matches = App::new("release-manager")
@@ -39,9 +43,19 @@ fn main() {
         matches.is_present("quite"),
     );
 
+    let config_file = match search_up_for_config_files() {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            error!("{}", err);
+            ::std::process::exit(1);
+        }
+    };
+
+    let config = parse_toml(config_file);
+
     let code: i32 = match matches.subcommand() {
-        ("local", Some(sub_m)) => process_project_command(sub_m),
-        ("github", Some(sub_m)) => process_github_command(sub_m),
+        ("local", Some(sub_m)) => process_project_command(sub_m, &config),
+        ("github", Some(sub_m)) => process_github_command(sub_m, &config),
         _ => {
             error!("No command avaliable");
             -1
@@ -49,4 +63,34 @@ fn main() {
     };
 
     ::std::process::exit(code);
+}
+
+
+fn search_up_for_config_files() -> Result<PathBuf, String> {
+    let current_dir: PathBuf = env::current_dir().unwrap();
+
+    let mut path = current_dir.clone();
+    let mut at_root = false;
+
+    while !at_root {
+        if let Some(config) = config_file(path.clone()) {
+            return Ok(config);
+        }
+
+        match path.clone().parent() {
+            Some(parent_path) => path = parent_path.to_path_buf(),
+            None => at_root = true,
+        }
+    }
+
+    return Err(s!("No Config Found!"));
+}
+
+fn config_file(path: PathBuf) -> Option<PathBuf> {
+    let config_search = path.join(format!(".release-manager.toml"));
+    if config_search.exists() {
+        return Some(config_search);
+    }
+
+    return None;
 }
