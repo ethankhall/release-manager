@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  linux:
+  build:
     working_directory: /app
     docker:
       - image: docker:17.05.0-ce-git
