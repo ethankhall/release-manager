@@ -1,0 +1,15 @@
+version: 2
+jobs:
+  linux:
+    working_directory: /app
+    docker:
+      - image: docker:17.05.0-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: "build linux container"
+          command: docker build -t linux-builder --file .docker/musl-linux.Dockerfile .docker
+      - run:
+          name: "build application"
+          command: docker run -v /app:/app linux-builder sh -c 'cargo test && cargo build --release'
