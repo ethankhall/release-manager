@@ -1,7 +1,7 @@
 version: 2
 jobs:
   build:
-    working_directory: /app
+    working_directory: /code
     docker:
       - image: docker:17.05.0-ce-git
     steps:
@@ -10,6 +10,75 @@ jobs:
       - run:
           name: "build linux container"
           command: docker build -t linux-builder --file .docker/musl-linux.Dockerfile .docker
+      - run: 
+          name: Set up Mounts
+          command: |
+            docker rm code || true
+            # creating dummy container which will hold a volume with config
+            docker create -v /code --name code alpine:3.4 /bin/true
+            # copying config file into this volume
+            docker cp /code code:/
       - run:
           name: "build application"
-          command: docker run -v /app:/app linux-builder sh -c 'cargo test && cargo build --release'
+          command: docker run --rm --volumes-from code --workdir /code linux-builder sh -c "cargo test && cargo build --release"
+
+      - run: |
+          # once application container finishes we can copy artifacts directly from it
+          docker cp code:/target/x86_64-unknown-linux-musl/release/release-manager /code/artifacts/releaes-manager-linux
+  windows:
+    working_directory: /code
+    docker:
+      - image: docker:17.05.0-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: "build linux other"
+          command: docker build -t other-builder --file .docker/other-builder.Dockerfile .docker
+      - run: 
+          name: Set up Mounts
+          command: |
+            docker rm code || true
+            # creating dummy container which will hold a volume with config
+            docker create -v /code --name code alpine:3.4 /bin/true
+            # copying config file into this volume
+            docker cp /code code:/
+      - run:
+          name: "build application"
+          command: docker run --rm --volumes-from code --workdir /code other-builder sh -c "cargo build --release --target x86_64-pc-windows-gnu"
+
+      - run: |
+          # once application container finishes we can copy artifacts directly from it
+          docker cp code:/target/x86_64-pc-windows-gnu/release/release-manager.exe /code/artifacts/releaes-manager-windows.exe
+  mac:
+    working_directory: /code
+    docker:
+      - image: docker:17.05.0-ce-git
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: "build linux other"
+          command: docker build -t other-builder --file .docker/other-builder.Dockerfile .docker
+      - run: 
+          name: Set up Mounts
+          command: |
+            docker rm code || true
+            # creating dummy container which will hold a volume with config
+            docker create -v /code --name code alpine:3.4 /bin/true
+            # copying config file into this volume
+            docker cp /code code:/
+      - run:
+          name: "build application"
+          command: docker run --rm --volumes-from code --workdir /code other-builder sh -c "cargo build --release --target x86_64-apple-darwin"
+
+      - run: |
+          # once application container finishes we can copy artifacts directly from it
+          docker cp code:/target/x86_64-apple-darwin/release/release-manager /code/artifacts/releaes-manager-macos
+workflows:
+  version: 2
+  assemble:
+    jobs:
+      - build
+      - windows
+      - mac
