@@ -24,6 +24,7 @@ jobs:
 
       - run: |
           # once application container finishes we can copy artifacts directly from it
+          mkdir -p /code/artifacts
           docker cp code:/code/target/x86_64-unknown-linux-musl/release/release-manager /code/artifacts/releaes-manager-linux
   windows:
     working_directory: /code
@@ -49,6 +50,7 @@ jobs:
 
       - run: |
           # once application container finishes we can copy artifacts directly from it
+          mkdir -p /code/artifacts
           docker cp code:/code/target/x86_64-pc-windows-gnu/release/release-manager.exe /code/artifacts/releaes-manager-windows.exe
   mac:
     working_directory: /code
@@ -74,6 +76,7 @@ jobs:
 
       - run: |
           # once application container finishes we can copy artifacts directly from it
+          mkdir -p /code/artifacts
           docker cp code:/code/target/x86_64-apple-darwin/release/release-manager /code/artifacts/releaes-manager-macos
 workflows:
   version: 2
