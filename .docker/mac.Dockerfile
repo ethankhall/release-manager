@@ -1,6 +1,6 @@
 FROM archlinux/base
 
-RUN pacman -Syu --noconfirm && pacman -S --noconfirm wget base-devel clang git openssh
+RUN pacman -Syu --noconfirm && pacman -S --noconfirm wget base-devel clang git openssh cmake
 RUN mkdir /tmp/pkg && \
     wget -q --directory-prefix=/tmp/pkg https://dl.bintray.com/ethankhall/generic/packages/osxcross-git-0.14-1-x86_64.pkg.tar.xz && \
     pacman -U --noconfirm /tmp/pkg/*

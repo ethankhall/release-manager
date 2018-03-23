@@ -1,6 +1,6 @@
 FROM archlinux/base
 
-RUN pacman -Syu --noconfirm && pacman -S --noconfirm wget base-devel clang git openssh
+RUN pacman -Syu --noconfirm && pacman -S --noconfirm wget base-devel clang git openssh cmake
 RUN mkdir /tmp/pkg && \
     wget -q --directory-prefix=/tmp/pkg https://dl.bintray.com/ethankhall/generic/packages/mingw-w64-winpthreads-5.0.3-1-any.pkg.tar.xz && \
     wget -q --directory-prefix=/tmp/pkg https://dl.bintray.com/ethankhall/generic/packages/mingw-w64-headers-5.0.3-1-any.pkg.tar.xz && \
