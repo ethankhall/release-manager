@@ -9,13 +9,6 @@ phases:
           remove-item rustup-init.exe
         displayName: Install Rust
       - powershell: |
-          & "$env:USERPROFILE/.cargo/bin/cargo.exe" +nightly-x86_64-pc-windows-msvc install rustfmt-nightly --force
-          & "$env:USERPROFILE/.cargo/bin/cargo.exe" +nightly-x86_64-pc-windows-msvc fmt -- --write-mode diff
-        displayName: Validate Formatting
-      - powershell: |
-          & "$env:USERPROFILE/.cargo/bin/cargo.exe" +stable-x86_64-pc-windows-msvc check
-        displayName: Cargo Check
-      - powershell: |
           & "$env:USERPROFILE/.cargo/bin/cargo.exe" +stable-x86_64-pc-windows-msvc test
         displayName: Run Tests
       - powershell: |
@@ -26,7 +19,8 @@ phases:
         inputs:
           PathtoPublish: ./target/release/release-manager.exe
           ArtifactName: drop
-          ArtifactType: Container
+          ArtifactType: FilePath
+          TargetPath: release-manager-windows.exe
 
   - phase: Linux
     queue: Hosted Linux Preview
@@ -46,7 +40,35 @@ phases:
           imageName: 'release-manager-musl'
           volumes: $(Build.SourcesDirectory):/build
           workDir: '/build'
+          containerCommand: 'cargo check'
+
+      - task: Docker@0
+        inputs:
+          detached: false
+          containerregistrytype: 'Container Registry'
+          action: 'Run an image'
+          imageName: 'release-manager-musl'
+          volumes: $(Build.SourcesDirectory):/build
+          workDir: '/build'
+          containerCommand: 'cargo install rustfmt-nightly --force && cargo fmt -- --write-mode diff'
+
+      - task: Docker@0
+        inputs:
+          detached: false
+          containerregistrytype: 'Container Registry'
+          action: 'Run an image'
+          imageName: 'release-manager-musl'
+          volumes: $(Build.SourcesDirectory):/build
+          workDir: '/build'
           containerCommand: 'cargo build --release'
+
+      - task: PublishBuildArtifacts@2
+        displayName: "Publish Artifact: Release Build"
+        inputs:
+          PathtoPublish: ./target/x86_64-unknown-linux-musl/release/release-manager
+          ArtifactType: FilePath
+          ArtifactName: drop
+          TargetPath: release-manager-linux
 
   - phase: Mac
     queue: Hosted macOS Preview
