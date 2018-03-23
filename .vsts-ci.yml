@@ -33,12 +33,14 @@ phases:
     steps:
       - task: Docker@0
         inputs:
+          detached: false
           containerregistrytype: 'Container Registry'
           dockerFile: '.docker/musl-linux.Dockerfile'
           imageName: 'release-manager-musl'
 
       - task: Docker@0
         inputs:
+          detached: false
           containerregistrytype: 'Container Registry'
           action: 'Run an image'
           imageName: 'release-manager-musl'
