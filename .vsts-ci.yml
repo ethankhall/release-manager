@@ -28,7 +28,7 @@ phases:
           ArtifactName: drop
           ArtifactType: Container
 
- - phase: Linux
+  - phase: Linux
     queue: Hosted Linux Preview
     steps:
       - task: Docker@0
@@ -47,20 +47,19 @@ phases:
           containerCommand: 'cargo build --release'
 
   - phase: Mac
-    queue:
-      name: Hosted macOS Preview
+    queue: Hosted macOS Preview
     steps:
-    - script: |
-      cd $HOME
-      mkdir $HOME/homebrew && curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C $HOME/homebrew
-      
-      export PATH=$PATH:$HOME/homebrew/bin
-      
-      brew install cmake
-      curl https://sh.rustup.rs -sSf | sh
+      - script: |
+        cd $HOME
+        mkdir $HOME/homebrew && curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C $HOME/homebrew
+        
+        export PATH=$PATH:$HOME/homebrew/bin
+        
+        brew install cmake
+        curl https://sh.rustup.rs -sSf | sh
 
-    - task: CmdLine@1
-      inputs:
-        filename: '$HOME/.cargo/bin/cargo.exe'
-        arguments: 'build --release'
-        workingFolder: $(Build.SourcesDirectory)
+      - task: CmdLine@1
+        inputs:
+          filename: '$HOME/.cargo/bin/cargo.exe'
+          arguments: 'build --release'
+          workingFolder: $(Build.SourcesDirectory)
