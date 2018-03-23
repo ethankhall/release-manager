@@ -1,17 +1,7 @@
-FROM archlinux/base
+FROM microsoft/windowsservercore
 
-RUN pacman -Syu --noconfirm && pacman -S --noconfirm wget base-devel clang git openssh cmake
-RUN mkdir /tmp/pkg && \
-    wget -q --directory-prefix=/tmp/pkg https://dl.bintray.com/ethankhall/generic/packages/mingw-w64-winpthreads-5.0.3-1-any.pkg.tar.xz && \
-    wget -q --directory-prefix=/tmp/pkg https://dl.bintray.com/ethankhall/generic/packages/mingw-w64-headers-5.0.3-1-any.pkg.tar.xz && \
-    wget -q --directory-prefix=/tmp/pkg https://dl.bintray.com/ethankhall/generic/packages/mingw-w64-crt-5.0.3-1-any.pkg.tar.xz && \
-    wget -q --directory-prefix=/tmp/pkg https://dl.bintray.com/ethankhall/generic/packages/mingw-w64-binutils-2.29-1-x86_64.pkg.tar.xz && \
-    wget -q --directory-prefix=/tmp/pkg https://dl.bintray.com/ethankhall/generic/packages/mingw-w64-gcc-7.3.0-1-x86_64.pkg.tar.xz && \
-    pacman -U --noconfirm /tmp/pkg/*
+RUN powershell -Command \
+  Set-ExecutionPolicy Bypass -Scope Process -Force; \
+  iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 
-RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain nightly -y
-COPY cargo-config /root/.cargo/config
-
-RUN /root/.cargo/bin/rustup target add x86_64-pc-windows-gnu
-
-ENV PATH=$PATH:/root/.cargo/bin/:/usr/x86_64-w64-mingw32/bin
+RUN choco install --yes rust
