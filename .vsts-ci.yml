@@ -50,13 +50,13 @@ phases:
     queue: Hosted macOS Preview
     steps:
       - script: |
-        cd $HOME
-        mkdir $HOME/homebrew && curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C $HOME/homebrew
-        
-        export PATH=$PATH:$HOME/homebrew/bin
-        
-        brew install cmake
-        curl https://sh.rustup.rs -sSf | sh
+          cd $HOME
+          mkdir $HOME/homebrew && curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C $HOME/homebrew
+          
+          export PATH=$PATH:$HOME/homebrew/bin
+          
+          brew install cmake
+          curl https://sh.rustup.rs -sSf | sh
 
       - task: CmdLine@1
         inputs:
