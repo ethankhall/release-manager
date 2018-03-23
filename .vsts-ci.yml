@@ -1,0 +1,66 @@
+phases:
+  - phase: Windows
+    queue: Hosted VS2017
+    steps:
+      - powershell: |
+          invoke-restmethod -usebasicparsing 'https://static.rust-lang.org/rustup/dist/i686-pc-windows-gnu/rustup-init.exe' -outfile 'rustup-init.exe'
+          ./rustup-init.exe -y --default-toolchain stable-x86_64-pc-windows-msvc --no-modify-path
+          & "$env:USERPROFILE/.cargo/bin/rustup.exe" install nightly-x86_64-pc-windows-msvc
+          remove-item rustup-init.exe
+        displayName: Install Rust
+      - powershell: |
+          & "$env:USERPROFILE/.cargo/bin/cargo.exe" +nightly-x86_64-pc-windows-msvc install rustfmt-nightly --force
+          & "$env:USERPROFILE/.cargo/bin/cargo.exe" +nightly-x86_64-pc-windows-msvc fmt -- --write-mode diff
+        displayName: Validate Formatting
+      - powershell: |
+          & "$env:USERPROFILE/.cargo/bin/cargo.exe" +stable-x86_64-pc-windows-msvc check
+        displayName: Cargo Check
+      - powershell: |
+          & "$env:USERPROFILE/.cargo/bin/cargo.exe" +stable-x86_64-pc-windows-msvc test
+        displayName: Run Tests
+      - powershell: |
+          & "$env:USERPROFILE/.cargo/bin/cargo.exe" +stable-x86_64-pc-windows-msvc build --release
+        displayName: Build Release
+      - task: PublishBuildArtifacts@1
+        displayName: "Publish Artifact: Release Build"
+        inputs:
+          PathtoPublish: ./target/release/release-manager.exe
+          ArtifactName: drop
+          ArtifactType: Container
+
+ - phase: Linux
+    queue: Hosted Linux Preview
+    steps:
+      - task: Docker@0
+        inputs:
+          containerregistrytype: 'Container Registry'
+          dockerFile: '.docker/musl-linux.Dockerfile'
+          imageName: 'release-manager-musl'
+
+      - task: Docker@0
+        inputs:
+          containerregistrytype: 'Container Registry'
+          action: 'Run an image'
+          imageName: 'release-manager-musl'
+          volumes: $(Build.SourcesDirectory):/build
+          workDir: '/build'
+          containerCommand: 'cargo build --release'
+
+  - phase: Mac
+    queue:
+      name: Hosted macOS Preview
+    steps:
+    - script: |
+      cd $HOME
+      mkdir $HOME/homebrew && curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C $HOME/homebrew
+      
+      export PATH=$PATH:$HOME/homebrew/bin
+      
+      brew install cmake
+      curl https://sh.rustup.rs -sSf | sh
+
+    - task: CmdLine@1
+      inputs:
+        filename: '$HOME/.cargo/bin/cargo.exe'
+        arguments: 'build --release'
+        workingFolder: $(Build.SourcesDirectory)
