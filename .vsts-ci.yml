@@ -52,13 +52,11 @@ phases:
 
   - phase: Mac
     queue: Hosted macOS Preview
-    dependsOn: Windows
+    dependsOn: Linux
     steps:
       - script: |
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain nightly -y
-
-      - task: CmdLine@1
-        inputs:
-          filename: $HOME/.cargo/bin/cargo
-          arguments: 'build --release'
-          workingFolder: $(Build.SourcesDirectory)
+          
+          
+      - script: |
+          $HOME/.cargo/bin/cargo build --release
