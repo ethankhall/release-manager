@@ -57,7 +57,7 @@ phases:
     dependsOn: Windows
     steps:
       - script: |
-        curl https://sh.rustup.rs -sSf | sh
+          curl https://sh.rustup.rs -sSf | sh
 
       - task: CmdLine@1
         inputs:
