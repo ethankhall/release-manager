@@ -6,20 +6,20 @@ extern crate futures;
 extern crate git2;
 extern crate hyper;
 extern crate hyper_tls;
+extern crate ini;
 #[macro_use]
 extern crate json;
 #[macro_use]
 extern crate log;
-extern crate ini;
 extern crate mime;
 extern crate mime_guess;
 extern crate semver;
+#[macro_use]
+extern crate serde_derive;
 extern crate tokio_core;
 extern crate toml;
 extern crate toml_edit;
 extern crate url;
-#[macro_use]
-extern crate serde_derive;
 
 #[macro_export]
 macro_rules! s {
