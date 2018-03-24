@@ -33,6 +33,7 @@ phases:
           imageName: 'release-manager-musl'
 
       - task: Docker@0
+        displayName: Build Application
         inputs:
           detached: false
           containerregistrytype: 'Container Registry'
@@ -40,27 +41,7 @@ phases:
           imageName: 'release-manager-musl'
           volumes: $(Build.SourcesDirectory):/build
           workDir: '/build'
-          containerCommand: 'cargo check'
-
-      - task: Docker@0
-        inputs:
-          detached: false
-          containerregistrytype: 'Container Registry'
-          action: 'Run an image'
-          imageName: 'release-manager-musl'
-          volumes: $(Build.SourcesDirectory):/build
-          workDir: '/build'
-          containerCommand: 'cargo install rustfmt-nightly --force && cargo fmt -- --write-mode diff'
-
-      - task: Docker@0
-        inputs:
-          detached: false
-          containerregistrytype: 'Container Registry'
-          action: 'Run an image'
-          imageName: 'release-manager-musl'
-          volumes: $(Build.SourcesDirectory):/build
-          workDir: '/build'
-          containerCommand: 'cargo build --release'
+          containerCommand: '/bin/musl-build.sh'
 
       - task: PublishBuildArtifacts@1
         displayName: "Publish Artifact: Release Build"
