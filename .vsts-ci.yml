@@ -62,7 +62,7 @@ phases:
           workDir: '/build'
           containerCommand: 'cargo build --release'
 
-      - task: PublishBuildArtifacts@2
+      - task: PublishBuildArtifacts@1
         displayName: "Publish Artifact: Release Build"
         inputs:
           PathtoPublish: ./target/x86_64-unknown-linux-musl/release/release-manager
