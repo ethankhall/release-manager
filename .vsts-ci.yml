@@ -59,6 +59,6 @@ phases:
 
       - task: CmdLine@1
         inputs:
-          filename: '$HOME/.cargo/bin/cargo.exe'
+          filename: '$HOME/.cargo/bin/cargo'
           arguments: 'build --release'
           workingFolder: $(Build.SourcesDirectory)
