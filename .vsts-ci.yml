@@ -1,5 +1,6 @@
 phases:
   - phase: Windows
+    dependsOn: Linux
     queue: Hosted VS2017
     steps:
       - powershell: |
@@ -53,6 +54,7 @@ phases:
 
   - phase: Mac
     queue: Hosted macOS Preview
+    dependsOn: Windows
     steps:
       - script: |
           cd $HOME
