@@ -19,9 +19,8 @@ phases:
         displayName: "Publish Artifact: Release Build"
         inputs:
           PathtoPublish: ./target/release/release-manager.exe
-          ArtifactName: drop
-          ArtifactType: FilePath
-          TargetPath: release-manager-windows.exe
+          ArtifactName: release-manager-windows
+          ArtifactType: Container
 
   - phase: Linux
     queue: Hosted Linux Preview
@@ -48,9 +47,8 @@ phases:
         displayName: "Publish Artifact: Release Build"
         inputs:
           PathtoPublish: ./target/x86_64-unknown-linux-musl/release/release-manager
-          ArtifactType: FilePath
-          ArtifactName: drop
-          TargetPath: release-manager-linux
+          ArtifactType: Container
+          ArtifactName: release-manager-linux
 
   - phase: Mac
     queue: Hosted macOS Preview
