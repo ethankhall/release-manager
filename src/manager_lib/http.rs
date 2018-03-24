@@ -1,11 +1,11 @@
 use std::ops::Deref;
 use std::boxed::Box;
 
-use hyper::client::HttpConnector;   
+use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use tokio_core::reactor::Core;
 use hyper::{Client, Request, StatusCode};
-use hyper::header::{qitem, Accept, Authorization, UserAgent, Headers};
+use hyper::header::{qitem, Accept, Authorization, Headers, UserAgent};
 use hyper::mime::Mime;
 use futures::{future, Future, Stream};
 use hyper::Error as HyperError;
@@ -16,7 +16,11 @@ pub(crate) trait HttpRequester {
     fn make_request(&self, request: Request) -> Result<(StatusCode, String), ErrorCodes>;
 }
 
-pub(crate) fn set_default_headers(headers: &mut Headers, accept: Option<&str>, token: Option<String>) {
+pub(crate) fn set_default_headers(
+    headers: &mut Headers,
+    accept: Option<&str>,
+    token: Option<String>,
+) {
     if token.is_some() {
         headers.set(Authorization(format!("token {}", token.unwrap())));
     }
@@ -30,13 +34,11 @@ pub(crate) fn set_default_headers(headers: &mut Headers, accept: Option<&str>, t
     headers.set(user_agent);
 }
 
-pub(crate) struct DefaultHttpRequester {
-}
+pub(crate) struct DefaultHttpRequester {}
 
 impl DefaultHttpRequester {
     pub(crate) fn new() -> Self {
-        return DefaultHttpRequester {
-        };
+        return DefaultHttpRequester {};
     }
 
     fn make_external_parts<'a>(&self) -> (Core, Client<HttpsConnector<HttpConnector>>) {

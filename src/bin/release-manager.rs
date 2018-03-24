@@ -65,7 +65,6 @@ fn main() {
     ::std::process::exit(code);
 }
 
-
 fn search_up_for_config_files() -> Result<PathBuf, String> {
     let current_dir: PathBuf = env::current_dir().unwrap();
 

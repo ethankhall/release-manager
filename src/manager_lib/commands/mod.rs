@@ -5,7 +5,7 @@ pub use super::errors::*;
 
 pub(crate) mod cli_shared {
     use clap::{Arg, ArgGroup, ArgMatches};
-    use std::path::{Path};
+    use std::path::Path;
 
     use super::super::file::read_file_to_string;
 

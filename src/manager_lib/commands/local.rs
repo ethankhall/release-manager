@@ -49,8 +49,7 @@ pub fn project_clap<'a, 'b>() -> App<'a, 'b> {
                 ]),
         );
 
-    let show_version = SubCommand::with_name("show-version")
-        .about("Show the current version");
+    let show_version = SubCommand::with_name("show-version").about("Show the current version");
 
     return App::new("local")
         .about("Local project operations.")
@@ -108,15 +107,14 @@ fn update_version(args: &ArgMatches) -> Result<(), CommandError> {
                     major: version.major,
                     minor: version.minor,
                     patch: version.patch,
-                    pre: vec![
-                        Identifier::AlphaNumeric(s!("SNAPSHOT"))
-                    ],
+                    pre: vec![Identifier::AlphaNumeric(s!("SNAPSHOT"))],
                     build: vec![
                         Identifier::Numeric(
                             SystemTime::now()
                                 .duration_since(UNIX_EPOCH)
                                 .unwrap()
-                                .as_secs())
+                                .as_secs(),
+                        ),
                     ],
                 };
             }

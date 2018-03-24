@@ -32,7 +32,9 @@ pub(crate) fn build_project(path: Option<PathBuf>) -> Option<Arc<Project>> {
                 return Some(Arc::new(CargoProject::new(path.parent().unwrap())));
             } else if file_name == OsString::from(VERSION_PROPERTIES_NAME) {
                 let path = file_path.path();
-                return Some(Arc::new(VersionPropertiesProject::new(path.parent().unwrap())));
+                return Some(Arc::new(VersionPropertiesProject::new(
+                    path.parent().unwrap(),
+                )));
             }
         }
 
@@ -98,7 +100,10 @@ impl Project for VersionPropertiesProject {
     fn get_version(&self) -> Version {
         let conf: Ini = Ini::load_from_str(&self.read_version_file()).unwrap();
 
-        let version_string = conf.section(None::<String>).unwrap().get("version").unwrap();
+        let version_string = conf.section(None::<String>)
+            .unwrap()
+            .get("version")
+            .unwrap();
         debug!("Current project version: {}", version_string);
 
         return Version::parse(version_string).unwrap();
@@ -107,7 +112,8 @@ impl Project for VersionPropertiesProject {
     fn update_version(&self, version: Version) {
         let mut conf: Ini = Ini::load_from_str(&self.read_version_file()).unwrap();
 
-        conf.with_section(None::<String>).set("version", version.to_string());
+        conf.with_section(None::<String>)
+            .set("version", version.to_string());
 
         let body = VersionPropertiesProject::ini_to_string(conf);
 
@@ -116,7 +122,8 @@ impl Project for VersionPropertiesProject {
 
     fn render_version_files(&self, version: Version) -> HashMap<String, String> {
         let mut conf: Ini = Ini::load_from_str(&self.read_version_file()).unwrap();
-        conf.with_section(None::<String>).set("version", version.to_string());
+        conf.with_section(None::<String>)
+            .set("version", version.to_string());
         let version_text = VersionPropertiesProject::ini_to_string(conf);
 
         let mut map = HashMap::new();

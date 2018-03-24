@@ -10,20 +10,22 @@ extern crate hyper_tls;
 extern crate json;
 #[macro_use]
 extern crate log;
+extern crate ini;
+extern crate mime;
+extern crate mime_guess;
 extern crate semver;
 extern crate tokio_core;
 extern crate toml;
 extern crate toml_edit;
 extern crate url;
-extern crate ini;
-extern crate mime_guess;
-extern crate mime;
 #[macro_use]
 extern crate serde_derive;
 
 #[macro_export]
 macro_rules! s {
-    ($x:expr) => ( $x.to_string() );
+    ($x: expr) => {
+        $x.to_string()
+    };
 }
 
 pub mod commands;

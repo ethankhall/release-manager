@@ -36,9 +36,11 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
     let release = SubCommand::with_name("release")
         .about("Tag the current branch with the version in the metadata file for the project.")
         .arg(cli_shared::github_token())
-        .arg(Arg::with_name("draft-release")
-            .long("draft")
-            .help("Release in GitHub will be marked as draft"))
+        .arg(
+            Arg::with_name("draft-release")
+                .long("draft")
+                .help("Release in GitHub will be marked as draft"),
+        )
         .arg(cli_shared::message())
         .arg(cli_shared::message_file())
         .group(cli_shared::message_group());
@@ -59,11 +61,9 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
 pub fn process_github_command(args: &ArgMatches, config: &Config) -> i32 {
     let response = match args.subcommand() {
         ("artifacts", Some(sub_m)) => upload_github_artifacts(sub_m, config),
-        ("release-and-bump", Some(sub_m)) => {
-            match create_release(sub_m, config) {
-                Ok(_) => bump_version(sub_m, config),
-                Err(err) => Err(err)
-            }
+        ("release-and-bump", Some(sub_m)) => match create_release(sub_m, config) {
+            Ok(_) => bump_version(sub_m, config),
+            Err(err) => Err(err),
         },
         ("release", Some(sub_m)) => create_release(sub_m, config),
         ("bump", Some(sub_m)) => bump_version(sub_m, config),
@@ -138,7 +138,7 @@ fn create_release(args: &ArgMatches, config: &Config) -> Result<(), CommandError
 
     let head = match git::find_last_commit(project.deref().project_root()) {
         Err(err) => return Err(CommandError::new(err, "Unable to get last commit")),
-        Ok(v) => v
+        Ok(v) => v,
     };
 
     return match github.create_release(
@@ -154,7 +154,7 @@ fn create_release(args: &ArgMatches, config: &Config) -> Result<(), CommandError
                 s!("Unable to create release"),
             ))
         }
-        Ok(_) => Ok(())
+        Ok(_) => Ok(()),
     };
 }
 
@@ -164,23 +164,27 @@ fn bump_version(args: &ArgMatches, config: &Config) -> Result<(), CommandError> 
 
     let head = match git::find_last_commit(project.deref().project_root()) {
         Err(err) => return Err(CommandError::new(err, "Unable to get last commit")),
-        Ok(v) => v
+        Ok(v) => v,
     };
 
-    let branch_name = match git::find_branch_for_commit(project.deref().project_root(), head.clone()) {
-        Err(err) => return Err(CommandError::new(err, "Unable to get branch name")),
-        Ok(v) => v
-    };
+    let branch_name =
+        match git::find_branch_for_commit(project.deref().project_root(), head.clone()) {
+            Err(err) => return Err(CommandError::new(err, "Unable to get branch name")),
+            Ok(v) => v,
+        };
 
     let github = make_github(args, config)?;
     version.increment_patch();
     let version_files = project.render_version_files(version);
-    
+
     return match github.update_files(head, branch_name, version_files) {
         Ok(_) => Ok(()),
         Err(err) => {
             trace!("Unable to bump version: {:?}", err);
-            Err(CommandError::new(ErrorCodes::UnableToBumpVersion, s!("Unable to bump version in GitHub")))
+            Err(CommandError::new(
+                ErrorCodes::UnableToBumpVersion,
+                s!("Unable to bump version in GitHub"),
+            ))
         }
-    }
+    };
 }

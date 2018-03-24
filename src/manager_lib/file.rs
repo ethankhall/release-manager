@@ -13,7 +13,8 @@ pub(crate) fn read_file_to_string(path: &Path) -> String {
 pub(crate) fn read_file_to_bytes(path: &Path) -> Vec<u8> {
     let mut file = File::open(path).expect("Unable to open the file");
     let mut contents = Vec::new();
-    file.read_to_end(&mut contents).expect("Unable to read the file");
+    file.read_to_end(&mut contents)
+        .expect("Unable to read the file");
     return contents;
 }
 

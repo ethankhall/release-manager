@@ -1,4 +1,4 @@
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::vec::Vec;
 
 use git2::Repository as GitRepository;
@@ -42,30 +42,26 @@ pub(crate) fn find_last_commit(root_path: PathBuf) -> Result<String, ErrorCodes>
         });
 }
 
-pub(crate) fn find_branch_for_commit(root_path: PathBuf, sha: String) -> Result<String, ErrorCodes> {
+pub(crate) fn find_branch_for_commit(
+    root_path: PathBuf,
+    sha: String,
+) -> Result<String, ErrorCodes> {
     let repo = find_git_repo(root_path)?;
     let oid = Oid::from_str(&sha).unwrap();
     trace!("SHA: {}", oid);
 
-    let branch = repo.branches(None).expect("To be able to get branches")
-        .find(|result| {
-            match result {
-                &Ok((ref branch, _)) => {
-                    branch.get().target() == Some(oid)
-                },
-                _ => false
-            }
+    let branch = repo.branches(None)
+        .expect("To be able to get branches")
+        .find(|result| match result {
+            &Ok((ref branch, _)) => branch.get().target() == Some(oid),
+            _ => false,
         });
 
     return match branch {
-        Some(Ok((ref branch, _))) => {
-            match branch.name() {
-                Ok(name) => {
-                    Ok(s!(name.unwrap()))
-                },
-                Err(_) => Err(ErrorCodes::UnableToFindBranchNameForSha)
-            }
+        Some(Ok((ref branch, _))) => match branch.name() {
+            Ok(name) => Ok(s!(name.unwrap())),
+            Err(_) => Err(ErrorCodes::UnableToFindBranchNameForSha),
         },
-        None | Some(Err(_))=> Err(ErrorCodes::UnableToFindBranchNameForSha)
+        None | Some(Err(_)) => Err(ErrorCodes::UnableToFindBranchNameForSha),
     };
 }
