@@ -59,7 +59,11 @@ pub(crate) fn find_branch_for_commit(
 
     return match branch {
         Some(Ok((ref branch, _))) => match branch.name() {
-            Ok(name) => Ok(s!(name.unwrap())),
+            Ok(name) => {
+                let name = name.unwrap();
+                let name = name.split("/").last().unwrap();
+                Ok(s!(name))
+            }
             Err(_) => Err(ErrorCodes::UnableToFindBranchNameForSha),
         },
         None | Some(Err(_)) => Err(ErrorCodes::UnableToFindBranchNameForSha),
