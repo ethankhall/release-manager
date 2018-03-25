@@ -60,12 +60,25 @@ pub(crate) fn find_branch_for_commit(
     return match branch {
         Some(Ok((ref branch, _))) => match branch.name() {
             Ok(name) => {
-                let name = name.unwrap();
-                let name = name.split("/").last().unwrap();
+                let name = strip_remote(name.unwrap());
                 Ok(s!(name))
             }
             Err(_) => Err(ErrorCodes::UnableToFindBranchNameForSha),
         },
         None | Some(Err(_)) => Err(ErrorCodes::UnableToFindBranchNameForSha),
     };
+}
+
+fn strip_remote(branch_name: &str) -> String {
+    return s!(branch_name.split("/").last().unwrap());
+}
+
+#[test]
+fn will_remove_origin() {
+    assert_eq!(strip_remote("origin/master"), s!("master"));
+}
+
+#[test]
+fn will_keep_raw_branch_name() {
+    assert_eq!(strip_remote("master"), s!("master"));
 }
