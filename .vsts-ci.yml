@@ -92,7 +92,7 @@ phases:
 
       - script: |
           chmod +x $ART_DIR/release-manager-linux/release-manager
-          $ART_DIR/release-manager-linux/release-manager github release-and-bump -vv && \
+          $ART_DIR/release-manager-linux/release-manager github release-and-bump -v && \
           $ART_DIR/release-manager-linux/release-manager github artifacts \
             $ART_DIR/release-manager-linux=release-manager-linux/release-manager\
             $ART_DIR/release-manager-windows=release-manager-windows/release-manager\
