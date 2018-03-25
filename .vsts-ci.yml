@@ -1,6 +1,6 @@
 phases:
-  - phase: Windows
-    dependsOn: Linux
+  - phase: Windows Build
+    dependsOn: Linux Build
     queue: Hosted VS2017
     steps:
       - powershell: |
@@ -22,7 +22,7 @@ phases:
           ArtifactName: release-manager-windows
           ArtifactType: Container
 
-  - phase: Linux
+  - phase: Linux Build
     queue: Hosted Linux Preview
     steps:
       - task: Docker@0
@@ -50,9 +50,9 @@ phases:
           ArtifactType: Container
           ArtifactName: release-manager-linux
 
-  - phase: Mac
+  - phase: Mac Build
     queue: Hosted macOS Preview
-    dependsOn: Linux
+    dependsOn: Linux Build
     steps:
       - script: |
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain nightly -y
@@ -60,3 +60,39 @@ phases:
           
       - script: |
           $HOME/.cargo/bin/cargo build --release
+
+      - task: PublishBuildArtifacts@1
+        displayName: "Publish Artifact: Release Build"
+        inputs:
+          PathtoPublish: ./target/release/release-manager
+          ArtifactName: release-manager-mac
+          ArtifactType: Container
+
+  - phase: Publish and Tag
+    queue: Hosted Linux Preview
+    dependsOn:
+      - Linux Build
+      - Mac Build
+      - Windows Build
+    steps:
+      - task: DownloadBuildArtifacts
+        inputs:
+          artifactName: release-manager-linux
+
+      - task: DownloadBuildArtifacts
+        inputs:
+          artifactName: release-manager-windows
+
+      - task: DownloadBuildArtifacts
+        inputs:
+          artifactName: release-manager-mac
+
+      - script: |
+          $ART_DIR/release-manager-linux/release-manager github release-and-bump
+          $ART_DIR/release-manager-linux/release-manager github artifacts \
+            $ART_DIR/release-manager-linux=release-manager-linux/release-manager\
+            $ART_DIR/release-manager-windows=release-manager-windows/release-manager\
+            $ART_DIR/release-manager-mac=release-manager-mac/release-manager
+        env:
+          GITHUB_TOKEN: $(GITHUB_TOKEN)
+          ART_DIR: $(System.ArtifactsDirectory)
