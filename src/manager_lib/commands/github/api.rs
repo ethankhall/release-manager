@@ -286,7 +286,7 @@ impl GitHub for GitHubImpl {
         trace!("New Tree ID: {:?}", tree_id);
 
         let body = object! {
-            "message" => "Updating the to the next version.\n[skip ci]",
+            "message" => "Updating the to the next version.\n[skip ci]\***NO_CI***",
             "tree" => tree_id,
             "parents" => vec![head],
             "committer" => object!{
