@@ -68,35 +68,35 @@ phases:
           ArtifactName: release-manager-mac
           ArtifactType: Container
 
-  - phase: Publish_and_Tag
-    queue: Hosted Linux Preview
-    dependsOn:
-      - Linux_Build
-      - Mac_Build
-      - Windows_Build
-    steps:
-      - task: DownloadBuildArtifacts@0
-        displayName: "Download Linux Artifacts"
-        inputs:
-          artifactName: release-manager-linux
+  # - phase: Publish_and_Tag
+  #   queue: Hosted Linux Preview
+  #   dependsOn:
+  #     - Linux_Build
+  #     - Mac_Build
+  #     - Windows_Build
+  #   steps:
+  #     - task: DownloadBuildArtifacts@0
+  #       displayName: "Download Linux Artifacts"
+  #       inputs:
+  #         artifactName: release-manager-linux
 
-      - task: DownloadBuildArtifacts@0
-        displayName: "Download Windows Artifacts"
-        inputs:
-          artifactName: release-manager-windows
+  #     - task: DownloadBuildArtifacts@0
+  #       displayName: "Download Windows Artifacts"
+  #       inputs:
+  #         artifactName: release-manager-windows
 
-      - task: DownloadBuildArtifacts@0
-        displayName: "Download Mac Artifacts"
-        inputs:
-          artifactName: release-manager-mac
+  #     - task: DownloadBuildArtifacts@0
+  #       displayName: "Download Mac Artifacts"
+  #       inputs:
+  #         artifactName: release-manager-mac
 
-      - script: |
-          chmod +x $ART_DIR/release-manager-linux/release-manager
-          $ART_DIR/release-manager-linux/release-manager github release-and-bump -v && \
-          $ART_DIR/release-manager-linux/release-manager github artifacts \
-            $ART_DIR/release-manager-linux/release-manager=release-manager-linux \
-            $ART_DIR/release-manager-windows/release-manager=release-manager-windows \
-            $ART_DIR/release-manager-mac/release-manager=release-manager-mac
-        env:
-          GITHUB_TOKEN: $(GITHUB_TOKEN)
-          ART_DIR: $(System.ArtifactsDirectory)
+  #     - script: |
+  #         chmod +x $ART_DIR/release-manager-linux/release-manager
+  #         $ART_DIR/release-manager-linux/release-manager github release-and-bump -v && \
+  #         $ART_DIR/release-manager-linux/release-manager github artifacts \
+  #           $ART_DIR/release-manager-linux/release-manager=release-manager-linux \
+  #           $ART_DIR/release-manager-windows/release-manager=release-manager-windows \
+  #           $ART_DIR/release-manager-mac/release-manager=release-manager-mac
+  #       env:
+  #         GITHUB_TOKEN: $(GITHUB_TOKEN)
+  #         ART_DIR: $(System.ArtifactsDirectory)
