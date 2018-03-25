@@ -1,6 +1,6 @@
 phases:
-  - phase: Windows Build
-    dependsOn: Linux Build
+  - phase: Windows_Build
+    dependsOn: Linux_Build
     queue: Hosted VS2017
     steps:
       - powershell: |
@@ -22,7 +22,7 @@ phases:
           ArtifactName: release-manager-windows
           ArtifactType: Container
 
-  - phase: Linux Build
+  - phase: Linux_Build
     queue: Hosted Linux Preview
     steps:
       - task: Docker@0
@@ -50,9 +50,9 @@ phases:
           ArtifactType: Container
           ArtifactName: release-manager-linux
 
-  - phase: Mac Build
+  - phase: Mac_Build
     queue: Hosted macOS Preview
-    dependsOn: Linux Build
+    dependsOn: Linux_Build
     steps:
       - script: |
           curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain nightly -y
@@ -68,27 +68,31 @@ phases:
           ArtifactName: release-manager-mac
           ArtifactType: Container
 
-  - phase: Publish and Tag
+  - phase: Publish_and_Tag
     queue: Hosted Linux Preview
     dependsOn:
-      - Linux Build
-      - Mac Build
-      - Windows Build
+      - Linux_Build
+      - Mac_Build
+      - Windows_Build
     steps:
-      - task: DownloadBuildArtifacts
+      - task: DownloadBuildArtifacts@0
+        displayName: "Download Linux Artifacts"
         inputs:
           artifactName: release-manager-linux
 
-      - task: DownloadBuildArtifacts
+      - task: DownloadBuildArtifacts@0
+        displayName: "Download Windows Artifacts"
         inputs:
           artifactName: release-manager-windows
 
-      - task: DownloadBuildArtifacts
+      - task: DownloadBuildArtifacts@0
+        displayName: "Download Mac Artifacts"
         inputs:
           artifactName: release-manager-mac
 
       - script: |
-          $ART_DIR/release-manager-linux/release-manager github release-and-bump
+          chmod +x $ART_DIR/release-manager-linux/release-manager
+          $ART_DIR/release-manager-linux/release-manager github release-and-bump && \
           $ART_DIR/release-manager-linux/release-manager github artifacts \
             $ART_DIR/release-manager-linux=release-manager-linux/release-manager\
             $ART_DIR/release-manager-windows=release-manager-windows/release-manager\
