@@ -94,9 +94,9 @@ phases:
           chmod +x $ART_DIR/release-manager-linux/release-manager
           $ART_DIR/release-manager-linux/release-manager github release-and-bump -v && \
           $ART_DIR/release-manager-linux/release-manager github artifacts \
-            $ART_DIR/release-manager-linux=release-manager-linux/release-manager\
-            $ART_DIR/release-manager-windows=release-manager-windows/release-manager\
-            $ART_DIR/release-manager-mac=release-manager-mac/release-manager
+            $ART_DIR/release-manager-linux/release-manager=release-manager-linux \
+            $ART_DIR/release-manager-windows/release-manager=release-manager-windows \
+            $ART_DIR/release-manager-mac/release-manager=release-manager-mac
         env:
           GITHUB_TOKEN: $(GITHUB_TOKEN)
           ART_DIR: $(System.ArtifactsDirectory)
