@@ -2,8 +2,6 @@
 
 release-manager is a highly openionated tool, aimed at making releasing of software on GitHub easier.
 release-manager currently operates on two different "scopes" the first is locally, the second is GitHub.
-
-## Local Scope
 When you run release-manager, you'll notice it has two different subcommands (more may be added in the future).
 
 ```
@@ -24,6 +22,7 @@ SUBCOMMANDS:
     local     Local project operations.
 ```
 
+## Local Operations
 The local option allows you to update version numbers via a CLI. While not really useful for average development,
 it can be extremely useful when working with a CI environment. Namely, if you want to always release "snapshot" versions
 of the codebase, without having to update the "version description". More on that later.
@@ -31,7 +30,7 @@ of the codebase, without having to update the "version description". More on tha
 So you can have you CI job, on a branch merge do `release-manager local update-version --snapshot`. Doing so will update
 the version file to be a "SNAPSHOT" version. (Adds a Semver post fix of "-SNAPSHOT-<Unix Epoch>" to the version number) .
 
-## GitHub Scope
+## GitHub Operations
 > _Making Updates to GitHub Repos_
 
 This sub-command makes changes to GitHub using the API. The `bump` and `release-and-bump` commands do not require SSH
