@@ -74,7 +74,7 @@ impl HttpRequester for DefaultHttpRequester {
             Ok((status, body)) => (status, String::from(body)),
             Err(err) => {
                 trace!("Request Error: {:?}", err);
-                return Err(ErrorCodes::NetworkCallFailed);
+                return Err(ErrorCodes::NetworkCallFailed)
             }
         };
 

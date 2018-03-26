@@ -5,7 +5,7 @@ use std::boxed::Box;
 
 use hyper::{Method, Request, StatusCode};
 use hyper::Uri as HyperUri;
-use hyper::header::ContentType;
+use hyper::header::{ContentType, ContentLength};
 use semver::Version;
 use url::Url;
 use json::{self, parse, JsonValue};
@@ -170,6 +170,8 @@ impl GitHubImpl {
     ) -> Request {
         let mut uri = Url::parse(&base_upload_url).expect("Url to be valid");
 
+        let upload_contents = file::read_file_to_bytes(&file_path);
+
         {
             let mut path = uri.path_segments_mut().expect("Cannot get path");
             path.pop();
@@ -190,9 +192,12 @@ impl GitHubImpl {
             let headers = request.headers_mut();
             headers.set(ContentType(mime));
             http::set_default_headers(headers, None, Some(self.api_token.clone()));
+
+            let content_size = upload_contents.len();
+            headers.set(ContentLength(content_size as u64));
         }
 
-        request.set_body(file::read_file_to_bytes(&file_path));
+        request.set_body(upload_contents);
         return request;
     }
 }
@@ -333,11 +338,14 @@ impl GitHub for GitHubImpl {
             }
         }
 
-        let response = self.handle_network_request_without_body(self.build_base_url(vec![
+        let response = match self.handle_network_request_without_body(self.build_base_url(vec![
             "releases",
             "tags",
-            &release_name,
-        ])?)?;
+            &release_name])?) {
+                Err(err) => return Err(err),
+                Ok(x) => x
+        };
+
         let upload_url = match response {
             JsonValue::Object(obj) => s!(obj.get("upload_url").unwrap().as_str().unwrap()),
             _ => return Err(GitHubError::UnableToFindRelease),
