@@ -33,7 +33,7 @@ pub enum GitHubError {
     UnableToCreateRelease(StatusCode),
     UnableToFindRelease,
     UnableToCreateTree,
-    CommunicationError,
+    CommunicationError(ErrorCodes),
     UnableToParseResponse,
     UnableToMakeURI,
     UnableToUpdateReference,
@@ -114,7 +114,7 @@ impl GitHubImpl {
             Some(self.api_token.clone()),
         );
         return match self.requester.make_request(request) {
-            Err(_) => Err(GitHubError::CommunicationError),
+            Err(err) => Err(GitHubError::CommunicationError(err)),
             Ok((status, body)) => match status {
                 StatusCode::Ok => parse(&body).map_err(|_| GitHubError::UnableToParseResponse),
                 StatusCode::Created => parse(&body).map_err(|_| GitHubError::UnableToParseResponse),
@@ -136,7 +136,7 @@ impl GitHubImpl {
             Some(self.api_token.clone()),
         );
         return match self.requester.make_request(request) {
-            Err(_) => Err(GitHubError::CommunicationError),
+            Err(err) => Err(GitHubError::CommunicationError(err)),
             Ok((status, body)) => match status {
                 StatusCode::Ok => parse(&body).map_err(|_| GitHubError::UnableToParseResponse),
                 StatusCode::Created => parse(&body).map_err(|_| GitHubError::UnableToParseResponse),
@@ -351,31 +351,21 @@ impl GitHub for GitHubImpl {
             _ => return Err(GitHubError::UnableToFindRelease),
         };
 
-        let upload_requests: Vec<Request> = artifacts
+        let upload_requests: Vec<(String, Request)> = artifacts
             .into_iter()
-            .map(|(name, path)| self.build_upload_request(upload_url.clone(), name, path))
+            .map(|(name, path)| (name.clone(), self.build_upload_request(upload_url.clone(), name, path)))
             .collect();
 
-        let results: Vec<Result<(StatusCode, String), ErrorCodes>> = upload_requests
-            .into_iter()
-            .map(|x| self.requester.make_request(x))
-            .collect();
-
-        let mut errors = false;
-        for res in results {
-            match res {
+        for (name, request) in upload_requests {
+            match self.requester.make_request(request) {
                 Ok(_) => {}
                 Err(code) => {
-                    errors = true;
-                    error!("Error transmitting files {:?}", code);
+                    error!("Error transmitting file {} => {:?}", name, code);
+                    return Err(GitHubError::UnableToUploadArtifact);
                 }
             }
         }
 
-        return if errors {
-            Err(GitHubError::UnableToUploadArtifact)
-        } else {
-            Ok(())
-        };
+        return Ok(());
     }
 }

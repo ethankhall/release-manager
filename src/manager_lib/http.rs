@@ -1,5 +1,6 @@
 use std::ops::Deref;
 use std::boxed::Box;
+use std::error::Error;
 
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
@@ -74,6 +75,7 @@ impl HttpRequester for DefaultHttpRequester {
             Ok((status, body)) => (status, String::from(body)),
             Err(err) => {
                 trace!("Request Error: {:?}", err);
+                error!("Unable to make request becasue `{}`", err.description());
                 return Err(ErrorCodes::NetworkCallFailed)
             }
         };
