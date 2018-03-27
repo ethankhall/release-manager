@@ -4,6 +4,7 @@ extern crate clap;
 extern crate log;
 #[macro_use]
 extern crate manager_lib;
+extern crate openssl_probe;
 
 use std::env;
 use std::path::PathBuf;
@@ -43,6 +44,8 @@ fn main() {
         matches.is_present("quite"),
     );
 
+    init_openssl();
+
     let config_file = match search_up_for_config_files() {
         Ok(cfg) => cfg,
         Err(err) => {
@@ -63,6 +66,16 @@ fn main() {
     };
 
     ::std::process::exit(code);
+}
+
+#[cfg(target_family = "unix")]
+fn init_openssl() {
+    openssl_probe::init_ssl_cert_env_vars();
+}
+
+#[cfg(target_family = "windows")]
+fn init_openssl() {
+    openssl_probe::init_ssl_cert_env_vars();
 }
 
 fn search_up_for_config_files() -> Result<PathBuf, String> {
