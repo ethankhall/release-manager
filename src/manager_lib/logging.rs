@@ -1,5 +1,5 @@
-use std::io::{stderr, stdout};
 use chrono::Local;
+use std::io::{stderr, stdout};
 
 use fern::Dispatch;
 use fern::colors::{Color, ColoredLevelConfig};
@@ -13,8 +13,9 @@ pub fn configure_logging(verbose: i32, quite: bool) {
     };
 
     let mut dispatch = Dispatch::new();
-    if level != Level::Trace && verbose < 3 {
+    if level != Level::Trace || verbose + 2 < 5 {
         dispatch = dispatch
+            .level_for("mio", Level::Warn.to_level_filter())
             .level_for("tokio_core", Level::Warn.to_level_filter())
             .level_for("hyper", Level::Warn.to_level_filter());
     }

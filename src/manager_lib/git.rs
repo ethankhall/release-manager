@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 use std::vec::Vec;
 
+use super::errors::*;
 use git2::Repository as GitRepository;
 use git2::{ObjectType, Oid};
-use super::errors::*;
 
 fn find_git_repo(root_path: PathBuf) -> Result<GitRepository, ErrorCodes> {
     return match GitRepository::discover(root_path) {

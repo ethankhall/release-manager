@@ -1,3 +1,6 @@
+#![feature(custom_attribute)]
+#![feature(assoc_unix_epoch)]
+#![feature(try_trait)]
 #![deny(unused_extern_crates)]
 extern crate chrono;
 extern crate clap;
@@ -16,23 +19,29 @@ extern crate mime_guess;
 extern crate semver;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate serde_json;
 extern crate tokio_core;
 extern crate toml;
 extern crate toml_edit;
 extern crate url;
+extern crate tar;
+extern crate glob;
+extern crate crypto;
+extern crate indicatif;
 
 #[macro_export]
 macro_rules! s {
-    ($x: expr) => {
+    ($x:expr) => {
         $x.to_string()
     };
 }
 
 pub mod commands;
-pub mod logging;
-pub mod errors;
 pub mod config;
-pub(crate) mod http;
+pub mod errors;
 pub(crate) mod file;
 pub(crate) mod git;
+pub(crate) mod http;
+pub mod logging;
 pub(crate) mod version_manager;

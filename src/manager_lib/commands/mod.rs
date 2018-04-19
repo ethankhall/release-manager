@@ -1,5 +1,6 @@
-pub mod local;
+pub mod artifactory;
 pub mod github;
+pub mod local;
 
 pub use super::errors::*;
 
@@ -10,6 +11,7 @@ pub(crate) mod cli_shared {
     use super::super::file::read_file_to_string;
 
     pub static GITHUB_API_TOKEN: &'static str = "github-api-token";
+    pub static ARTIFACTORY_API_TOKEN: &'static str = "artifactory-api-token";
     pub static MESSAGE: &'static str = "message";
     pub static MESSAGE_FILE: &'static str = "message-file";
 
@@ -19,6 +21,15 @@ pub(crate) mod cli_shared {
             .help("Auth token for Github. It's recommended to use the GITHUB_TOKEN environment variable.")
             .required(true)
             .env("GITHUB_TOKEN")
+            .hide_env_values(true);
+    }
+
+    pub(crate) fn artifactory_token<'a, 'b>() -> Arg<'a, 'b> {
+        return Arg::with_name(ARTIFACTORY_API_TOKEN)
+            .long("artifactory-token")
+            .help("Auth token for Artifactory. It's recommended to use the ARTIFACTORY_TOKEN environment variable.")
+            .required(true)
+            .env("ARTIFACTORY_TOKEN")
             .hide_env_values(true);
     }
 

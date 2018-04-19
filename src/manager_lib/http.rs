@@ -1,15 +1,17 @@
-use std::ops::Deref;
 use std::boxed::Box;
 use std::error::Error;
+use std::ops::Deref;
 
-use hyper::client::HttpConnector;
-use hyper_tls::HttpsConnector;
-use tokio_core::reactor::Core;
-use hyper::{Client, Request, StatusCode};
-use hyper::header::{qitem, Accept, Authorization, Headers, UserAgent};
-use hyper::mime::Mime;
 use futures::{future, Future, Stream};
 use hyper::Error as HyperError;
+use hyper::client::HttpConnector;
+use hyper::header::{qitem, Accept, Authorization, Headers, UserAgent};
+use hyper::mime::Mime;
+use hyper::{Client, Request, StatusCode};
+use hyper_tls::HttpsConnector;
+use tokio_core::reactor::Core;
+
+use indicatif::{ProgressBar, ProgressStyle};
 
 use super::errors::ErrorCodes;
 
@@ -56,6 +58,14 @@ impl HttpRequester for DefaultHttpRequester {
     fn make_request(&self, request: Request) -> Result<(StatusCode, String), ErrorCodes> {
         trace!("Request to be sent: {:?}", &request);
 
+        let spinner = ProgressBar::new_spinner();
+        spinner.set_style(ProgressStyle::default_spinner()
+            .tick_chars("/|\\- ")
+            .template("{spinner:.dim.bold} Processing request to {wide_msg}"));
+        spinner.enable_steady_tick(100);
+        spinner.tick();
+        spinner.set_message(&format!("{}", request.uri()));
+
         let (mut core, client) = self.make_external_parts();
         let work = client.request(request).and_then(|res| {
             let status = Box::new(res.status());
@@ -76,11 +86,14 @@ impl HttpRequester for DefaultHttpRequester {
             Err(err) => {
                 trace!("Request Error: {:?}", err);
                 error!("Unable to make request becasue `{}`", err.description());
-                return Err(ErrorCodes::NetworkCallFailed)
+                spinner.finish_and_clear();
+                return Err(ErrorCodes::NetworkCallFailed);
             }
         };
 
-        trace!("Body from GitHub API: {}", body);
+        spinner.finish_and_clear();
+
+        trace!("Body from API: {}", body);
 
         return Ok((*status.deref(), body));
     }

@@ -8,6 +8,10 @@ pub enum ErrorCodes {
     UnableToBumpVersion,
     UnableToFindBranchNameForSha,
     FileDoesNotExist,
+    ArtifactorySectionDoesNotExist,
+    RepoNotValid,
+    ArtifactoryCommunicationFailed,
+    ArtifactorySectionDoesNotContainBintray,
 }
 
 pub struct CommandError {
@@ -18,7 +22,7 @@ pub struct CommandError {
 impl CommandError {
     pub fn new<S: Into<String>>(error_code: ErrorCodes, message: S) -> CommandError {
         return CommandError {
-            error_code: error_code,
+            error_code,
             message: message.into(),
         };
     }
