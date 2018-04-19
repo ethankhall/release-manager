@@ -23,16 +23,16 @@ extern crate url;
 
 #[macro_export]
 macro_rules! s {
-    ($x: expr) => {
+    ($x:expr) => {
         $x.to_string()
     };
 }
 
 pub mod commands;
-pub mod logging;
-pub mod errors;
 pub mod config;
-pub(crate) mod http;
+pub mod errors;
 pub(crate) mod file;
 pub(crate) mod git;
+pub(crate) mod http;
+pub mod logging;
 pub(crate) mod version_manager;

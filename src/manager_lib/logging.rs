@@ -1,5 +1,5 @@
-use std::io::{stderr, stdout};
 use chrono::Local;
+use std::io::{stderr, stdout};
 
 use fern::Dispatch;
 use fern::colors::{Color, ColoredLevelConfig};

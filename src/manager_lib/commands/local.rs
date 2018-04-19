@@ -1,12 +1,12 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use clap::{App, AppSettings, Arg, ArgGroup, ArgMatches, SubCommand};
-use semver::Version as SemverVersion;
 use semver::Identifier;
+use semver::Version as SemverVersion;
 
-use super::super::version_manager::build_project;
-use super::super::errors::*;
 use super::super::config::Config;
+use super::super::errors::*;
+use super::super::version_manager::build_project;
 
 pub fn project_clap<'a, 'b>() -> App<'a, 'b> {
     let create_command = SubCommand::with_name("update-version")

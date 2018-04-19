@@ -1,5 +1,6 @@
-pub mod local;
+pub mod artifactory;
 pub mod github;
+pub mod local;
 
 pub use super::errors::*;
 

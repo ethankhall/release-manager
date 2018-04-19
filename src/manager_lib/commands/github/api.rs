@@ -1,23 +1,23 @@
-use std::vec::Vec;
+use std::boxed::Box;
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
-use std::boxed::Box;
+use std::vec::Vec;
 
-use hyper::{Method, Request, StatusCode};
+use clap::ArgMatches;
 use hyper::Uri as HyperUri;
-use hyper::header::{ContentType, ContentLength};
+use hyper::header::{ContentLength, ContentType};
+use hyper::{Method, Request, StatusCode};
+use json::{self, parse, JsonValue};
+use mime::Mime;
+use mime_guess::guess_mime_type;
 use semver::Version;
 use url::Url;
-use json::{self, parse, JsonValue};
-use clap::ArgMatches;
-use mime_guess::guess_mime_type;
-use mime::Mime;
 
 use super::super::super::config::Config;
 use super::super::super::errors::ErrorCodes;
+use super::super::super::file;
 use super::super::super::http::{self, DefaultHttpRequester, HttpRequester};
 use super::super::cli_shared;
-use super::super::super::file;
 
 pub(crate) struct GitHubImpl {
     api_token: String,
@@ -341,9 +341,10 @@ impl GitHub for GitHubImpl {
         let response = match self.handle_network_request_without_body(self.build_base_url(vec![
             "releases",
             "tags",
-            &release_name])?) {
-                Err(err) => return Err(err),
-                Ok(x) => x
+            &release_name,
+        ])?) {
+            Err(err) => return Err(err),
+            Ok(x) => x,
         };
 
         let upload_url = match response {
@@ -353,7 +354,12 @@ impl GitHub for GitHubImpl {
 
         let upload_requests: Vec<(String, Request)> = artifacts
             .into_iter()
-            .map(|(name, path)| (name.clone(), self.build_upload_request(upload_url.clone(), name, path)))
+            .map(|(name, path)| {
+                (
+                    name.clone(),
+                    self.build_upload_request(upload_url.clone(), name, path),
+                )
+            })
             .collect();
 
         for (name, request) in upload_requests {

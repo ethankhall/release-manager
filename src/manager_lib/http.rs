@@ -1,15 +1,15 @@
-use std::ops::Deref;
 use std::boxed::Box;
 use std::error::Error;
+use std::ops::Deref;
 
-use hyper::client::HttpConnector;
-use hyper_tls::HttpsConnector;
-use tokio_core::reactor::Core;
-use hyper::{Client, Request, StatusCode};
-use hyper::header::{qitem, Accept, Authorization, Headers, UserAgent};
-use hyper::mime::Mime;
 use futures::{future, Future, Stream};
 use hyper::Error as HyperError;
+use hyper::client::HttpConnector;
+use hyper::header::{qitem, Accept, Authorization, Headers, UserAgent};
+use hyper::mime::Mime;
+use hyper::{Client, Request, StatusCode};
+use hyper_tls::HttpsConnector;
+use tokio_core::reactor::Core;
 
 use super::errors::ErrorCodes;
 
@@ -76,7 +76,7 @@ impl HttpRequester for DefaultHttpRequester {
             Err(err) => {
                 trace!("Request Error: {:?}", err);
                 error!("Unable to make request becasue `{}`", err.description());
-                return Err(ErrorCodes::NetworkCallFailed)
+                return Err(ErrorCodes::NetworkCallFailed);
             }
         };
 

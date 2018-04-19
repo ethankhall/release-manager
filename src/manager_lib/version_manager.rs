@@ -1,14 +1,14 @@
+use std::collections::HashMap;
+use std::env;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::ffi::OsString;
-use std::env;
-use std::collections::HashMap;
 use std::vec::Vec;
 
+use ini::Ini;
 use semver::Version;
 use toml;
 use toml_edit::{value, Document};
-use ini::Ini;
 
 use file::{read_file_to_string, write_file};
 

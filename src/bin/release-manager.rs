@@ -6,14 +6,15 @@ extern crate log;
 extern crate manager_lib;
 extern crate openssl_probe;
 
+use clap::{App, AppSettings, Arg, ArgGroup};
 use std::env;
 use std::path::PathBuf;
-use clap::{App, AppSettings, Arg, ArgGroup};
 
-use manager_lib::commands::local::{process_project_command, project_clap};
+use manager_lib::commands::artifactory::{artifacory_clap, process_artifactory_command};
 use manager_lib::commands::github::{github_clap, process_github_command};
-use manager_lib::logging::configure_logging;
+use manager_lib::commands::local::{process_project_command, project_clap};
 use manager_lib::config::parse_toml;
+use manager_lib::logging::configure_logging;
 
 fn main() {
     let matches = App::new("release-manager")
@@ -37,6 +38,7 @@ fn main() {
         .group(ArgGroup::with_name("logging").args(&["verbose", "quite"]))
         .subcommand(project_clap())
         .subcommand(github_clap())
+        .subcommand(artifacory_clap())
         .get_matches();
 
     configure_logging(
@@ -59,6 +61,7 @@ fn main() {
     let code: i32 = match matches.subcommand() {
         ("local", Some(sub_m)) => process_project_command(sub_m, &config),
         ("github", Some(sub_m)) => process_github_command(sub_m, &config),
+        ("artifactory", Some(sub_m)) => process_artifactory_command(sub_m, &config),
         _ => {
             error!("No command avaliable");
             -1

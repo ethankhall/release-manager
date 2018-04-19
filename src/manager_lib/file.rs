@@ -1,6 +1,6 @@
 use std::fs::File;
-use std::path::Path;
 use std::io::prelude::*;
+use std::path::Path;
 
 pub(crate) fn read_file_to_string(path: &Path) -> String {
     let mut file = File::open(path).expect("Unable to open the file");

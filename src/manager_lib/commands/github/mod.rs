@@ -1,15 +1,15 @@
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 use std::ops::Deref;
+use std::path::{Path, PathBuf};
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use super::super::version_manager::build_project;
+use self::api::{GitHub, GitHubError, GitHubImpl};
+use super::super::config::Config;
 use super::super::errors::*;
 use super::super::git;
-use super::super::config::Config;
+use super::super::version_manager::build_project;
 use super::cli_shared;
-use self::api::{GitHub, GitHubError, GitHubImpl};
 
 mod api;
 
