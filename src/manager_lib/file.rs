@@ -19,6 +19,10 @@ pub(crate) fn read_file_to_bytes(path: &Path) -> Vec<u8> {
 }
 
 pub(crate) fn write_file(contents: String, path: &Path) {
+    write_file_as_bytes(contents.as_bytes(), path);
+}
+
+pub(crate) fn write_file_as_bytes(contents: &[u8], path: &Path) {
     let mut file = File::create(path).expect("Unable to open the file");
-    file.write_all(contents.as_bytes()).expect("file written");
+    file.write_all(contents).expect("file written");
 }

@@ -80,7 +80,7 @@ impl HttpRequester for DefaultHttpRequester {
             }
         };
 
-        trace!("Body from GitHub API: {}", body);
+        trace!("Body from API: {}", body);
 
         return Ok((*status.deref(), body));
     }

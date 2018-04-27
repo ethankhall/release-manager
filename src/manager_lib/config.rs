@@ -7,12 +7,20 @@ use super::file;
 #[derive(Deserialize, Clone)]
 pub struct Config {
     pub github: GitHubConfig,
+    pub artifactory: Option<ArtifactoryConfig>
 }
 
 #[derive(Deserialize, Clone)]
 pub struct GitHubConfig {
     pub owner: String,
     pub repo: String,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct ArtifactoryConfig {
+    pub repo: String,
+    pub group: String,
+    pub server: String
 }
 
 pub fn parse_toml<S: Into<PathBuf>>(path: S) -> Config {

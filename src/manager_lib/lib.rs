@@ -1,3 +1,4 @@
+#![feature(assoc_unix_epoch)]
 #![deny(unused_extern_crates)]
 extern crate chrono;
 extern crate clap;
@@ -20,6 +21,8 @@ extern crate tokio_core;
 extern crate toml;
 extern crate toml_edit;
 extern crate url;
+extern crate tar;
+extern crate glob;
 
 #[macro_export]
 macro_rules! s {

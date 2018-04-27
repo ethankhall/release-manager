@@ -10,7 +10,7 @@ use clap::{App, AppSettings, Arg, ArgGroup};
 use std::env;
 use std::path::PathBuf;
 
-use manager_lib::commands::artifactory::{artifacory_clap, process_artifactory_command};
+use manager_lib::commands::artifactory::{artifactory_clap, process_artifactory_command};
 use manager_lib::commands::github::{github_clap, process_github_command};
 use manager_lib::commands::local::{process_project_command, project_clap};
 use manager_lib::config::parse_toml;
@@ -38,7 +38,7 @@ fn main() {
         .group(ArgGroup::with_name("logging").args(&["verbose", "quite"]))
         .subcommand(project_clap())
         .subcommand(github_clap())
-        .subcommand(artifacory_clap())
+        .subcommand(artifactory_clap())
         .get_matches();
 
     configure_logging(
