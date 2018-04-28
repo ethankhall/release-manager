@@ -20,7 +20,9 @@ pub struct GitHubConfig {
 pub struct ArtifactoryConfig {
     pub repo: String,
     pub group: String,
-    pub server: String
+    pub server: String,
+    #[serde(rename = "bintray-repo")]
+    pub bintray_repo: Option<String>
 }
 
 pub fn parse_toml<S: Into<PathBuf>>(path: S) -> Config {

@@ -1,18 +1,18 @@
-use std::path::{MAIN_SEPARATOR, Path};
-use std::fs::File;
+use std::path::Path;
 
-use tar::Builder;
-use glob::glob;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use serde_json;
 
 use self::api::{ArtifactoryImpl, Artifactory};
+use self::builder::build_artifactory_details;
 use super::cli_shared;
 use super::super::file::write_file_as_bytes;
 use super::super::version_manager::build_project;
-use super::super::config::{Config, ArtifactoryConfig};
+use super::super::config::Config;
 use super::super::errors::*;
 
 mod api;
+mod builder;
 
 pub fn artifactory_clap<'a, 'b>() -> App<'a, 'b> {
     let publish = SubCommand::with_name("publish")
@@ -32,6 +32,13 @@ pub fn artifactory_clap<'a, 'b>() -> App<'a, 'b> {
                 .takes_value(true)
         )
         .arg(
+            Arg::with_name("build-number")
+                .long("build-number")
+                .help("Build number in artifactory. This needs to be unique, but can be as simple as MS since epoch")
+                .takes_value(true)
+                .required(true)
+        )
+        .arg(
             Arg::with_name("debug")
                 .long("debug")
                 .short("d")
@@ -42,7 +49,26 @@ pub fn artifactory_clap<'a, 'b>() -> App<'a, 'b> {
     let distribute =
         SubCommand::with_name("distribute")
             .about("Pushes the current version in Artifactory to Bintray.")
-            .arg(cli_shared::artifactory_token());
+            .arg(cli_shared::artifactory_token())
+            .arg(
+                Arg::with_name("no-publish")
+                    .long("no-publish")
+                    .help("When set, version will not auto publish in Bintray")
+            )
+            .arg(
+                Arg::with_name("debug")
+                    .long("debug")
+                    .short("d")
+                    .help("Writes any intermediate files into the current workind directory.")
+            )
+            .arg(
+                Arg::with_name("build-number")
+                    .long("build-number")
+                    .help("Build number in artifactory. This needs to be unique, but can be as simple as MS since epoch")
+                    .takes_value(true)
+                    .required(true)
+            );
+
 
     return App::new("artifactory")
         .about("Artifactory project operations.")
@@ -54,7 +80,7 @@ pub fn artifactory_clap<'a, 'b>() -> App<'a, 'b> {
 pub fn process_artifactory_command(args: &ArgMatches, config: &Config) -> i32 {
     let response = match args.subcommand() {
         ("publish", Some(m)) => upload_artifacts(m, config),
-        ("distribute", Some(m)) => distribute_artifacts(m),
+        ("distribute", Some(m)) => distribute_artifacts(m, config),
         _ => Err(CommandError::new(
             ErrorCodes::Unknown,
             format!("No command available. {:?}", args),
@@ -71,12 +97,11 @@ pub fn process_artifactory_command(args: &ArgMatches, config: &Config) -> i32 {
 }
 
 fn upload_artifacts(args: &ArgMatches, config: &Config) -> Result<(), CommandError> {
-    let repo_string = args.value_of("REPO").unwrap();
-    let repo_path = Path::new(repo_string);
+    let repo_path = Path::new(args.value_of("REPO").unwrap());
     if !Path::exists(repo_path) && repo_path.is_dir() {
-        trace!("Path `{}` does not exists or is not directory", repo_string);
+        trace!("Path `{:?}` does not exists or is not directory", repo_path);
         return Err(CommandError::new(ErrorCodes::RepoNotValid,
-                                     format!("Path `{}` does not exists or is not directory", repo_string)));
+                                     format!("Path `{:?}` does not exists or is not directory", repo_path)));
     }
 
     let artifactory_configs = match config.artifactory {
@@ -92,11 +117,13 @@ fn upload_artifacts(args: &ArgMatches, config: &Config) -> Result<(), CommandErr
         None => build_project(None).unwrap().get_version().to_string().clone()
     };
 
+    let build_number: i32 = args.value_of("build-number").unwrap().parse::<i32>().unwrap();
 
-    let tar_bytes = create_tar(repo_string, version, repo_path, artifactory_configs);
+    let artifactory_details = build_artifactory_details(&version, repo_path, artifactory_configs, &config.github.repo, build_number);
+
 
     if args.is_present("debug") {
-        write_file_as_bytes(tar_bytes.as_slice(), Path::new("upload.tar"));
+        write_file_as_bytes(artifactory_details.tar_bytes.as_slice(), Path::new("upload.tar"));
     }
 
     let artifactory_api = ArtifactoryImpl::new(
@@ -104,38 +131,90 @@ fn upload_artifacts(args: &ArgMatches, config: &Config) -> Result<(), CommandErr
         &args.value_of(cli_shared::ARTIFACTORY_API_TOKEN).unwrap().to_owned(),
         &artifactory_configs.repo);
 
-    return match artifactory_api.upload_artifacts(tar_bytes) {
-        Ok(_) => Ok(()),
+    match artifactory_api.upload_artifacts(artifactory_details.tar_bytes) {
+        Ok(_) => {}
+        Err(err) => {
+            return Err(CommandError::new(ErrorCodes::ArtifactoryCommunicationFailed, format!("{:?}", err)));
+        }
+    };
+
+    match artifactory_api.set_properties_on_path(&artifactory_configs.repo, &artifactory_details.build_details) {
+        Ok(_) => {}
+        Err(err) => {
+            return Err(CommandError::new(ErrorCodes::ArtifactoryCommunicationFailed, format!("{:?}", err)));
+        }
+    };
+
+    let json_as_string = serde_json::to_string(&artifactory_details.build_details).unwrap();
+
+    if args.is_present("debug") {
+        debug!("JSON body to be sent to artifactory: `{}`", json_as_string);
+    }
+
+    return match artifactory_api.put_json(vec!["api", "build"], json_as_string) {
+        Ok(_) => {
+            warn!("Released Build {}", build_number);
+            Ok(())
+        }
         Err(err) => {
             Err(CommandError::new(ErrorCodes::ArtifactoryCommunicationFailed, format!("{:?}", err)))
         }
     };
 }
 
-fn create_tar(repo_string: &str, version: String, repo_path: &Path, artifactory_configs: &ArtifactoryConfig) -> Vec<u8> {
-    let maven_prefix = artifactory_configs.group.replace(".", &MAIN_SEPARATOR.to_string());
-    let mut ar = Builder::new(Vec::new());
-    let glob_pattern = format!("{root}/{group}/*/{version}/*", root = repo_string, group = maven_prefix, version = version);
+fn distribute_artifacts(args: &ArgMatches, config: &Config) -> Result<(), CommandError> {
+    let build_number: i32 = args.value_of("build-number").unwrap().parse::<i32>().unwrap();
+    let publish = match !args.is_present("no-publish") {
+        true => "true",
+        false => "false"
+    };
 
-    trace!("Repo Glob is {}", glob_pattern);
-
-    let ignored_files = vec!["maven-metadata-local.xml", "maven-metadata.xml"];
-
-    for path in glob(&glob_pattern).unwrap().filter_map(Result::ok) {
-        let relative_path = path.as_path().strip_prefix(repo_path).unwrap();
-        let file = &mut File::open(path.clone()).unwrap();
-        let path_in_arc = format!("{}", relative_path.display());
-
-        if !ignored_files.contains(&relative_path.file_name().unwrap().to_str().unwrap())  {
-            debug!("Adding {:?}=={:?} to archive", path_in_arc, path);
-            ar.append_file(path_in_arc, file).expect("file to be added");
-        } else {
-            info!("Ignoring {:?} as it is metadata that should be managed server side", relative_path)
+    let artifactory_configs = match config.artifactory {
+        Some(ref a) => a,
+        None => {
+            return Err(CommandError::new(ErrorCodes::ArtifactorySectionDoesNotExist,
+                                         "Artifactory section of config was missing"));
         }
-    }
-    return ar.into_inner().unwrap();
-}
+    };
 
-fn distribute_artifacts(_args: &ArgMatches) -> Result<(), CommandError> {
-    return Ok(());
+    let remote_repo = match artifactory_configs.bintray_repo.clone() {
+        Some(x) => x,
+        None => {
+            return Err(CommandError::new(ErrorCodes::ArtifactorySectionDoesNotContainBintray,
+                                         "Artifactory section was missing 'bintray-repo'"));
+        }
+    };
+
+    let promote_json = json!({
+        "publish": publish,
+        "overrideExistingFiles": "false",
+        "async": "false",
+        "targetRepo": remote_repo,
+        "sourceRepos": vec![artifactory_configs.repo.clone()],
+        "dryRun": "false"
+    });
+
+    let artifactory_api = ArtifactoryImpl::new(
+        &artifactory_configs.server,
+        &args.value_of(cli_shared::ARTIFACTORY_API_TOKEN).unwrap().to_owned(),
+        &artifactory_configs.repo);
+
+    let build_number_string = format!("{}", build_number);
+    let path = vec!["api", "build", "distribute", &config.github.repo, &build_number_string];
+
+    let json_as_string = serde_json::to_string(&promote_json).unwrap();
+
+    if args.is_present("debug") {
+        debug!("JSON body to be sent to artifactory: `{}`", json_as_string);
+    }
+
+    return match artifactory_api.post_json(path, json_as_string) {
+        Ok(_) => {
+            warn!("Released Build {}", build_number);
+            Ok(())
+        }
+        Err(err) => {
+            Err(CommandError::new(ErrorCodes::ArtifactoryCommunicationFailed, format!("{:?}", err)))
+        }
+    };
 }

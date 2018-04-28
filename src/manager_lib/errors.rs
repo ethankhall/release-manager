@@ -10,7 +10,8 @@ pub enum ErrorCodes {
     FileDoesNotExist,
     ArtifactorySectionDoesNotExist,
     RepoNotValid,
-    ArtifactoryCommunicationFailed
+    ArtifactoryCommunicationFailed,
+    ArtifactorySectionDoesNotContainBintray,
 }
 
 pub struct CommandError {

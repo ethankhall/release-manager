@@ -11,6 +11,8 @@ use hyper::{Client, Request, StatusCode};
 use hyper_tls::HttpsConnector;
 use tokio_core::reactor::Core;
 
+use indicatif::{ProgressBar, ProgressStyle};
+
 use super::errors::ErrorCodes;
 
 pub(crate) trait HttpRequester {
@@ -56,6 +58,13 @@ impl HttpRequester for DefaultHttpRequester {
     fn make_request(&self, request: Request) -> Result<(StatusCode, String), ErrorCodes> {
         trace!("Request to be sent: {:?}", &request);
 
+        let spinner = ProgressBar::new_spinner();
+        spinner.set_style(ProgressStyle::default_spinner()
+            .tick_chars("/|\\- ")
+            .template("{spinner:.dim.bold} Uploading ..."));
+        spinner.enable_steady_tick(100);
+        spinner.tick();
+
         let (mut core, client) = self.make_external_parts();
         let work = client.request(request).and_then(|res| {
             let status = Box::new(res.status());
@@ -76,9 +85,12 @@ impl HttpRequester for DefaultHttpRequester {
             Err(err) => {
                 trace!("Request Error: {:?}", err);
                 error!("Unable to make request becasue `{}`", err.description());
+                spinner.finish_and_clear();
                 return Err(ErrorCodes::NetworkCallFailed);
             }
         };
+
+        spinner.finish_and_clear();
 
         trace!("Body from API: {}", body);
 
