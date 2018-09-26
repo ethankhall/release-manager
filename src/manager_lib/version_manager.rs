@@ -13,6 +13,7 @@ use toml_edit::{value, Document};
 use file::{read_file_to_string, write_file};
 
 const VERSION_PROPERTIES_NAME: &'static str = "version.properties";
+const CARGO_TOML_NAME: &'static str = "Cargo.toml";
 
 pub(crate) fn build_project(path: Option<PathBuf>) -> Option<Arc<Project>> {
     let path = match path {
@@ -27,14 +28,12 @@ pub(crate) fn build_project(path: Option<PathBuf>) -> Option<Arc<Project>> {
         for file in files {
             let file_path = file.unwrap();
             let file_name = file_path.file_name();
-            if file_name == OsString::from("Cargo.toml") {
+            if file_name == OsString::from(CARGO_TOML_NAME) {
                 let path = file_path.path();
-                return Some(Arc::new(CargoProject::new(path.parent().unwrap())));
+                return Some(Arc::new(CargoProject::new(s!(CARGO_TOML_NAME), &path)));
             } else if file_name == OsString::from(VERSION_PROPERTIES_NAME) {
                 let path = file_path.path();
-                return Some(Arc::new(VersionPropertiesProject::new(
-                    path.parent().unwrap(),
-                )));
+                return Some(Arc::new(VersionPropertiesProject::new(s!(VERSION_PROPERTIES_NAME), &path)));
             }
         }
 
@@ -46,8 +45,26 @@ pub(crate) fn build_project(path: Option<PathBuf>) -> Option<Arc<Project>> {
     return None;
 }
 
+pub(crate) fn project_from_path(file_names: String) -> Option<Arc<Project>> {
+    let working_dir = env::current_dir().unwrap();
+
+    let mut file_path = working_dir.to_path_buf();
+    file_path.push(file_names.clone());
+
+    if let Some(file_name) = file_path.file_name() {
+        if file_name == OsString::from(CARGO_TOML_NAME) {
+            let path = file_path.as_path();
+            return Some(Arc::new(CargoProject::new(file_names.clone(), &path)));
+        } else if file_name == OsString::from(VERSION_PROPERTIES_NAME) {
+            let path = file_path.as_path();
+            return Some(Arc::new(VersionPropertiesProject::new(file_names.clone(), &path)));
+        }
+    }
+
+    return None;
+}
+
 pub(crate) trait Project {
-    fn project_root(&self) -> PathBuf;
     fn get_version(&self) -> Version;
     fn update_version(&self, Version);
     fn render_version_files(&self, Version) -> HashMap<String, String>;
@@ -55,22 +72,22 @@ pub(crate) trait Project {
 }
 
 struct VersionPropertiesProject {
-    project_root: String,
+    project_path: String,
+    version_file: String,
 }
 
 impl VersionPropertiesProject {
-    fn new(path: &Path) -> Self {
+    fn new(project_path: String, path: &Path) -> Self {
         debug!("Project path: {:?}", path);
         return VersionPropertiesProject {
-            project_root: s!(path.to_str().unwrap()),
+            project_path: project_path, version_file: s!(path.to_str().unwrap()),
         };
     }
 
     fn get_version_file(&self) -> PathBuf {
-        let mut path_buf = PathBuf::from(self.project_root.clone());
-        path_buf.push(VERSION_PROPERTIES_NAME);
+        let path_buf = PathBuf::from(self.version_file.clone());
 
-        trace!("Using version.properties located at {:?}", path_buf);
+        trace!("Using version.properties located at {:?}", self.version_file);
         return path_buf;
     }
 
@@ -89,10 +106,6 @@ impl VersionPropertiesProject {
 }
 
 impl Project for VersionPropertiesProject {
-    fn project_root(&self) -> PathBuf {
-        return PathBuf::from(self.project_root.clone());
-    }
-
     fn get_version_files(&self) -> Vec<PathBuf> {
         return vec![self.get_version_file()];
     }
@@ -127,27 +140,27 @@ impl Project for VersionPropertiesProject {
         let version_text = VersionPropertiesProject::ini_to_string(conf);
 
         let mut map = HashMap::new();
-        map.insert(s!(VERSION_PROPERTIES_NAME), version_text);
+        map.insert(self.project_path.clone(), version_text);
 
         return map;
     }
 }
 
 struct CargoProject {
-    project_root: String,
+    project_path: String,
+    version_file: String,
 }
 
 impl CargoProject {
-    fn new(path: &Path) -> Self {
+    fn new(project_path: String, path: &Path) -> Self {
         debug!("Project path: {:?}", path);
         return CargoProject {
-            project_root: s!(path.to_str().unwrap()),
+            project_path: project_path, version_file: s!(path.to_str().unwrap()),
         };
     }
 
     fn get_cargo_file(&self) -> PathBuf {
-        let mut path_buf = PathBuf::from(self.project_root.clone());
-        path_buf.push("Cargo.toml");
+        let path_buf = PathBuf::from(self.version_file.clone());
 
         trace!("Using Cargo.toml located at {:?}", path_buf);
         return path_buf;
@@ -155,10 +168,6 @@ impl CargoProject {
 }
 
 impl Project for CargoProject {
-    fn project_root(&self) -> PathBuf {
-        return PathBuf::from(self.project_root.clone());
-    }
-
     fn get_version_files(&self) -> Vec<PathBuf> {
         return vec![self.get_cargo_file()];
     }
@@ -199,7 +208,7 @@ impl Project for CargoProject {
         doc["package"]["version"] = value(version.to_string());
 
         let mut map = HashMap::new();
-        map.insert(s!("Cargo.toml"), doc.to_string());
+        map.insert(self.project_path.clone(), doc.to_string());
 
         return map;
     }

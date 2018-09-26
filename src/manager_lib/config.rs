@@ -14,6 +14,8 @@ pub struct Config {
 pub struct GitHubConfig {
     pub owner: String,
     pub repo: String,
+    #[serde(rename = "version-file")]
+    pub verion_file: Option<String>
 }
 
 #[derive(Deserialize, Clone)]
@@ -25,7 +27,7 @@ pub struct ArtifactoryConfig {
     pub bintray_repo: Option<String>
 }
 
-pub fn parse_toml<S: Into<PathBuf>>(path: S) -> Config {
-    return toml::from_str(&file::read_file_to_string(&path.into()))
+pub fn parse_toml(path: &PathBuf) -> Config {
+    return toml::from_str(&file::read_file_to_string(path))
         .expect("Config to be well formed TOML");
 }

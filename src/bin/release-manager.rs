@@ -56,11 +56,19 @@ fn main() {
         }
     };
 
-    let config = parse_toml(config_file);
+    let config = parse_toml(&config_file);
+
+    let project_root = match config_file.parent() {
+        Some(parent) => parent,
+        None => {
+            error!("[BUG] Unable to get parent");
+            ::std::process::exit(-2);
+        }
+    };
 
     let code: i32 = match matches.subcommand() {
         ("local", Some(sub_m)) => process_project_command(sub_m, &config),
-        ("github", Some(sub_m)) => process_github_command(sub_m, &config),
+        ("github", Some(sub_m)) => process_github_command(sub_m, &config, &project_root),
         ("artifactory", Some(sub_m)) => process_artifactory_command(sub_m, &config),
         _ => {
             error!("No command avaliable");

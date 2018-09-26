@@ -1,5 +1,4 @@
 #![feature(custom_attribute)]
-#![feature(assoc_unix_epoch)]
 #![feature(try_trait)]
 #![deny(unused_extern_crates)]
 extern crate chrono;

@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
@@ -8,7 +7,7 @@ use self::api::{GitHub, GitHubError, GitHubImpl};
 use super::super::config::Config;
 use super::super::errors::*;
 use super::super::git;
-use super::super::version_manager::build_project;
+use super::super::version_manager::{build_project, project_from_path};
 use super::cli_shared;
 
 mod api;
@@ -58,15 +57,15 @@ pub fn github_clap<'a, 'b>() -> App<'a, 'b> {
         .subcommand(bump);
 }
 
-pub fn process_github_command(args: &ArgMatches, config: &Config) -> i32 {
+pub fn process_github_command(args: &ArgMatches, config: &Config, project_root: &Path) -> i32 {
     let response = match args.subcommand() {
-        ("artifacts", Some(sub_m)) => upload_github_artifacts(sub_m, config),
-        ("release-and-bump", Some(sub_m)) => match create_release(sub_m, config) {
-            Ok(_) => bump_version(sub_m, config),
+        ("artifacts", Some(sub_m)) => upload_github_artifacts(sub_m, config, project_root),
+        ("release-and-bump", Some(sub_m)) => match create_release(sub_m, config, project_root) {
+            Ok(_) => bump_version(sub_m, config, project_root),
             Err(err) => Err(err),
         },
-        ("release", Some(sub_m)) => create_release(sub_m, config),
-        ("bump", Some(sub_m)) => bump_version(sub_m, config),
+        ("release", Some(sub_m)) => create_release(sub_m, config, project_root),
+        ("bump", Some(sub_m)) => bump_version(sub_m, config, project_root),
         _ => Err(CommandError::new(
             ErrorCodes::Unknown,
             format!("No command avaliable. {:?}", args),
@@ -94,7 +93,7 @@ fn make_github(args: &ArgMatches, config: &Config) -> Result<GitHubImpl, Command
     };
 }
 
-fn upload_github_artifacts(args: &ArgMatches, config: &Config) -> Result<(), CommandError> {
+fn upload_github_artifacts(args: &ArgMatches, config: &Config, project_root: &Path) -> Result<(), CommandError> {
     let project = build_project(None).unwrap();
 
     let mut file_map: BTreeMap<String, PathBuf> = BTreeMap::new();
@@ -108,7 +107,7 @@ fn upload_github_artifacts(args: &ArgMatches, config: &Config) -> Result<(), Com
             (pathbuf.file_name().and_then(|x| x.to_str()).unwrap(), f)
         };
 
-        let mut file_path = project.deref().project_root();
+        let mut file_path = project_root.to_path_buf();
         file_path.push(value);
 
         debug!("File to upload: {} -> {:?}", key, file_path);
@@ -127,7 +126,8 @@ fn upload_github_artifacts(args: &ArgMatches, config: &Config) -> Result<(), Com
     };
 }
 
-fn create_release(args: &ArgMatches, config: &Config) -> Result<(), CommandError> {
+fn create_release(args: &ArgMatches, config: &Config, project_root: &Path) -> Result<(), CommandError> {
+
     let project = build_project(None).unwrap();
     let version = project.get_version();
 
@@ -136,7 +136,7 @@ fn create_release(args: &ArgMatches, config: &Config) -> Result<(), CommandError
 
     let github = make_github(args, config)?;
 
-    let head = match git::find_last_commit(project.deref().project_root()) {
+    let head = match git::find_last_commit(project_root.to_path_buf()) {
         Err(err) => return Err(CommandError::new(err, "Unable to get last commit")),
         Ok(v) => v,
     };
@@ -158,20 +158,29 @@ fn create_release(args: &ArgMatches, config: &Config) -> Result<(), CommandError
     };
 }
 
-fn bump_version(args: &ArgMatches, config: &Config) -> Result<(), CommandError> {
-    let project = build_project(None).unwrap();
-    let mut version = project.get_version();
+fn bump_version(args: &ArgMatches, config: &Config, project_root: &Path) -> Result<(), CommandError> {
+   
+    let project = match config.clone().github.verion_file {
+        Some(file) => project_from_path(file),
+        None => build_project(None)
+    };
 
-    let head = match git::find_last_commit(project.deref().project_root()) {
+    let project = match project {
+        Some(project) => project,
+        None => return Err(CommandError::new(ErrorCodes::NoRepoFound, "Could not find project description!"))
+    };
+
+    let head = match git::find_last_commit(project_root.to_path_buf()) {
         Err(err) => return Err(CommandError::new(err, "Unable to get last commit")),
         Ok(v) => v,
     };
 
-    let branch_name =
-        match git::find_branch_for_commit(project.deref().project_root(), head.clone()) {
-            Err(err) => return Err(CommandError::new(err, "Unable to get branch name")),
-            Ok(v) => v,
-        };
+    let branch_name = match git::find_branch_for_commit(project_root.to_path_buf(), head.clone()) {
+        Err(err) => return Err(CommandError::new(err, "Unable to get branch name")),
+        Ok(v) => v,
+    };
+
+    let mut version = project.get_version();
 
     let github = make_github(args, config)?;
     version.increment_patch();
