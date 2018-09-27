@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
@@ -7,7 +8,7 @@ use self::api::{GitHub, GitHubError, GitHubImpl};
 use super::super::config::Config;
 use super::super::errors::*;
 use super::super::git;
-use super::super::version_manager::{build_project, project_from_path};
+use super::super::version_manager::{build_project, project_from_path, Project};
 use super::cli_shared;
 
 mod api;
@@ -94,7 +95,7 @@ fn make_github(args: &ArgMatches, config: &Config) -> Result<GitHubImpl, Command
 }
 
 fn upload_github_artifacts(args: &ArgMatches, config: &Config, project_root: &Path) -> Result<(), CommandError> {
-    let project = build_project(None).unwrap();
+    let project = get_project(config)?;
 
     let mut file_map: BTreeMap<String, PathBuf> = BTreeMap::new();
     let files = args.values_of("file");
@@ -128,7 +129,7 @@ fn upload_github_artifacts(args: &ArgMatches, config: &Config, project_root: &Pa
 
 fn create_release(args: &ArgMatches, config: &Config, project_root: &Path) -> Result<(), CommandError> {
 
-    let project = build_project(None).unwrap();
+    let project = get_project(config)?;
     let version = project.get_version();
 
     let message_contents =
@@ -158,17 +159,21 @@ fn create_release(args: &ArgMatches, config: &Config, project_root: &Path) -> Re
     };
 }
 
-fn bump_version(args: &ArgMatches, config: &Config, project_root: &Path) -> Result<(), CommandError> {
-   
-    let project = match config.clone().github.verion_file {
+fn get_project(config: &Config) -> Result<Arc<Project>, CommandError> {
+    let project =  match config.clone().github.verion_file {
         Some(file) => project_from_path(file),
         None => build_project(None)
     };
 
-    let project = match project {
-        Some(project) => project,
+    return match project {
+        Some(project) => Ok(project),
         None => return Err(CommandError::new(ErrorCodes::NoRepoFound, "Could not find project description!"))
     };
+}
+
+fn bump_version(args: &ArgMatches, config: &Config, project_root: &Path) -> Result<(), CommandError> {
+   
+    let project = get_project(config)?;
 
     let head = match git::find_last_commit(project_root.to_path_buf()) {
         Err(err) => return Err(CommandError::new(err, "Unable to get last commit")),

@@ -4,13 +4,13 @@ use toml;
 
 use super::file;
 
-#[derive(Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub github: GitHubConfig,
     pub artifactory: Option<ArtifactoryConfig>
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct GitHubConfig {
     pub owner: String,
     pub repo: String,
@@ -18,7 +18,7 @@ pub struct GitHubConfig {
     pub verion_file: Option<String>
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ArtifactoryConfig {
     pub repo: String,
     pub group: String,

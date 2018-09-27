@@ -58,6 +58,8 @@ fn main() {
 
     let config = parse_toml(&config_file);
 
+    trace!("The parsed configs are: {:?}", config);
+
     let project_root = match config_file.parent() {
         Some(parent) => parent,
         None => {
