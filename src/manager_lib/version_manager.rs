@@ -51,6 +51,8 @@ pub(crate) fn project_from_path(file_names: String) -> Option<Arc<Project>> {
     let mut file_path = working_dir.to_path_buf();
     file_path.push(file_names.clone());
 
+    trace!("Looking for project file at {:?}", file_path);
+
     if let Some(file_name) = file_path.file_name() {
         if file_name == OsString::from(CARGO_TOML_NAME) {
             let path = file_path.as_path();
@@ -180,7 +182,7 @@ impl Project for CargoProject {
 
         let version = match parsed.get("package").and_then(|x| x.get("version")) {
             Some(value) => value.as_str().unwrap(),
-            None => panic!("Unable to get version for cargo.toml"),
+            None => panic!("Unable to get version for cargo.toml located at {:?}", cargo_path),
         };
 
         debug!("Current project version: {}", version);
